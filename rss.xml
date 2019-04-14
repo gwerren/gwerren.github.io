@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+	<channel>
+		<title>gwerren.com</title>
+		<link>http://gwerren.com</link>
+		<description>Software development - mainly C#</description>
+		<atom:link href="http://gwerren.com/rss.xml" rel="self" type="application/rss+xml" />
+			<item>
+				<title>MVVM and Code Behind</title>
+				<link>http://gwerren.com/Blog/Posts/mvvmCodeBehind</link>
+				<guid>http://gwerren.com/Blog/Posts/mvvmCodeBehind</guid>
+				<pubDate>Wed, 20 Mar 2019 00:00:00 GMT</pubDate>
+				<description>A look at code behind and why, when used properly, it isn't anti-MVVM</description>
+			</item>
+			<item>
+				<title>Introducing Multi-Caret</title>
+				<link>http://gwerren.com/Blog/Posts/introducingMultiCaret</link>
+				<guid>http://gwerren.com/Blog/Posts/introducingMultiCaret</guid>
+				<pubDate>Mon, 4 Feb 2019 00:00:00 GMT</pubDate>
+				<description>A Visual Studio plugin for multi-point editing</description>
+			</item>
+			<item>
+				<title>Basic Casting in C#</title>
+				<link>http://gwerren.com/Blog/Posts/basicCastingInCSharp</link>
+				<guid>http://gwerren.com/Blog/Posts/basicCastingInCSharp</guid>
+				<pubDate>Mon, 26 Feb 2018 00:00:00 GMT</pubDate>
+				<description>Good and bad ways to cast between types in C#.</description>
+			</item>
+			<item>
+				<title>Reporting Exceptions</title>
+				<link>http://gwerren.com/Blog/Posts/reportingExceptions</link>
+				<guid>http://gwerren.com/Blog/Posts/reportingExceptions</guid>
+				<pubDate>Thu, 11 Jan 2018 00:00:00 GMT</pubDate>
+				<description>Great exception reporting to make your users happy and your life easy.</description>
+			</item>
+			<item>
+				<title>Is Linq X-OrDefault Evil?</title>
+				<link>http://gwerren.com/Blog/Posts/isLinqXOrDefaultEvil</link>
+				<guid>http://gwerren.com/Blog/Posts/isLinqXOrDefaultEvil</guid>
+				<pubDate>Wed, 10 Jan 2018 00:00:00 GMT</pubDate>
+				<description>.FirstOrDefault() and friends are often used incorrectly, here we take a look at which of the &quot;select one&quot; methods to use when and how to choose.</description>
+			</item>
+			<item>
+				<title>Fail Early In Code</title>
+				<link>http://gwerren.com/Blog/Posts/failEarlyInCode</link>
+				<guid>http://gwerren.com/Blog/Posts/failEarlyInCode</guid>
+				<pubDate>Tue, 9 Jan 2018 00:00:00 GMT</pubDate>
+				<description>When writing code we should always consider error cases, this is a good thing. When attempting to handle an error case however...</description>
+			</item>
+			<item>
+				<title>Rethrowing Exceptions</title>
+				<link>http://gwerren.com/Blog/Posts/rethrowingExceptions</link>
+				<guid>http://gwerren.com/Blog/Posts/rethrowingExceptions</guid>
+				<pubDate>Tue, 19 Dec 2017 00:00:00 GMT</pubDate>
+				<description>How to (and not to) re-throw exceptions.</description>
+			</item>
+	</channel>
+</rss>

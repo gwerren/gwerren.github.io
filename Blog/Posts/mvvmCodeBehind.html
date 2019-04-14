@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width">
+		<title>MVVM and Code Behind</title>
+		<link rel="stylesheet" type="text/css" href="/Static/main.css">
+	</head>
+	<body>
+<div class="header">
+	<div class="header-title">
+		<a href="/" class="title-link">
+			<h1>gwerren.com</h1>
+			<h2>Programming notes and tools...</h2>
+		</a>
+	</div>
+</div>		<div class="main-container">
+			<div class="main-section">
+				<div class="post-title-section">
+					<h1 class="post-title">MVVM and Code Behind</h1>
+					<div class="post-tags">
+<a href="/Blog/Tags/mvvm" class="tag">MVVM</a><a href="/Blog/Tags/wpf" class="tag">WPF</a><a href="/Blog/Tags/csharp" class="tag">C#</a>					</div>
+				</div>
+				<p>If you search the web you will find countless articles deploring the use of WPF code behind and stating categorically that any use whatsoever is anti-MVVM. I disagree with this sweeping assertion and whilst it is true that most uses of code behind tend to be anti-MVVM (and hence liable to cause you pain in the future) there are some use cases where code behind is exactly the right tool for the job.</p>
+
+<p>First lets remind ourselves what MVVM is. MVVM is a design pattern that fits very nicely with Microsoft's WPF UI framework. It stands for Model-View-ViewModel and provides a three layer approach for separating your business logic from your view logic. The idea is that each layer knows about the one directly below it but not any layers below that or any layers above it. The layers are as follows:</p>
+
+<ul>
+<li>View
+
+<ul>
+<li>This defines the UI, it can request data from the view model, call commands on the view model and listen for change notifications from the view model. In a modern C# Windows application this is typically written using WPF.</li>
+</ul></li>
+<li>View Model
+
+<ul>
+<li>This acts as a translation layer between the model and the view, taking data from the model and manipulating it into an easy form for the view to consume, storing temporary information the user may have entered (e.g. filling out a "new user" form with multiple fields) and translating commands from the view into calls into the model (e.g. sending the "new user" data to the model when the user clicks "submit")</li>
+</ul></li>
+<li>Model
+
+<ul>
+<li>This is the business, CRUD or similar logic, it could be a database, a web service or a full blown domain model.</li>
+</ul></li>
+</ul>
+
+<p>So how does all this relate to code behind?</p>
+
+<p>WPF (which is often used for the View component of MVVM) provides you with two code files per view, a XAML file and a C# code behind file. The XAML file uses XAML, an XML based language, to define the UI layout. XAML is a pretty rich language allowing you to define graphs of UI components and how they bind (talk to) the underlying View Model. What is hard to do in XAML is define the type of logic which should really be in the View Model or even the Model, as such a good rule of thumb to ensure separation of concerns is to try to define all your view logic in XAML.</p>
+
+<p>The problem comes when you take the "avoid code behind" rule of thumb as a hard and fast rule. Sometimes you will encounter a view requirement that is impossible to encode in XAML itself. WPF gives us various tools to solve these sorts of problems including converters and attached behaviors, it also gives us code behind. All of these tools involve writing code in C#, not XAML, to augment the XAML code for your view. Converters and attached behaviors allow you to reuse your code across views but can be more complex to implement (especially if you want to make them generic enough to be able to reuse them).</p>
+
+<p>Code behind is often the simplest solution and if your problem is specific to a single view then I would argue code behind is the correct solution (why add complexity when you don't need to). The way I think about this is that the XAML, code behind, converters and attached behaviors are all part of your view, they are all tools you can use for building views and none of them should include any logic that belongs in a layer other than the view.</p>
+
+<p>A good example of where code behind is very useful is when using a DataGrid with a dynamic set of columns. In this instance the view model should be providing the data for the DataGrid including information on the columns. The code behind of the view can then listen to changes in columns and update the columns in the DataGrid itself. Whilst this could also be achieved with an attached behavior, if this is specific to a single view there is no need for the extra effort an attached behavior requires.</p>
+
+<p>I have also seen a lot of code where people claim "this is MVVM, look, no code behind!" but have stuffed their converters and even more so their attached behaviors, with business logic which should not be anywhere near the view. Just because you don't have code behind doesn't mean its MVVM but it can still be MVVM with code behind. Remember, MVVM is a design pattern, it doesn't specify any language or framework, just a way of separating concerns.</p>
+
+<p>So in summary, the rule of thumb, "avoid code behind" is a useful guideline but if you truly understand what MVVM is about and why it is useful you will know when the guideline can be ignored.</p>
+			</div>
+<div class="nav-section">
+	<div class="nav-sub-section">
+		<h2>About</h2>
+		<p>
+			I am a C# developer working in the finance sector in London, England. This is my personal site where I write about things that interest me (when I have the time!).
+		</p>
+		<p>
+			Here you will find personal projects along with blog articles about programming topics that interest me.
+		</p>
+	</div>
+	<div class="nav-sub-section">
+		<ul class="nav-project-list">
+				<li>
+					<div>
+						<a href="/Projects/multiCaret" class="list-link"><h2>Multi-Caret</h2></a>
+						<p class="nav-project-description">A Visual Studio plugin for multi-point editing</p>
+					</div>
+				</li>
+		</ul>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Tags</h2>
+		<div class="nav-tags">
+<a href="/Blog/Tags/csharp" class="tag">C#</a><a href="/Blog/Tags/cast" class="tag">Cast</a><a href="/Blog/Tags/exceptions" class="tag">Exceptions</a><a href="/Blog/Tags/linq" class="tag">Linq</a><a href="/Blog/Tags/multicaret" class="tag">Multi-Caret</a><a href="/Blog/Tags/mvvm" class="tag">MVVM</a><a href="/Blog/Tags/visualstudio" class="tag">Visual Studio</a><a href="/Blog/Tags/wpf" class="tag">WPF</a>		</div>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Latest Blog Posts</h2>
+		<ul class="no-bullets">
+				<li><a href="/Blog/Posts/mvvmCodeBehind" class="list-link">MVVM and Code Behind</a></li>
+				<li><a href="/Blog/Posts/introducingMultiCaret" class="list-link">Introducing Multi-Caret</a></li>
+				<li><a href="/Blog/Posts/basicCastingInCSharp" class="list-link">Basic Casting in C#</a></li>
+				<li><a href="/Blog/Posts/reportingExceptions" class="list-link">Reporting Exceptions</a></li>
+				<li><a href="/Blog/Posts/isLinqXOrDefaultEvil" class="list-link">Is Linq X-OrDefault Evil?</a></li>
+				<li><a href="/Blog/Posts/failEarlyInCode" class="list-link">Fail Early In Code</a></li>
+				<li><a href="/Blog/Posts/rethrowingExceptions" class="list-link">Rethrowing Exceptions</a></li>
+			<li class="spacing-item"></li>
+			<li><a href="/AllPosts">All Posts...</a></li>
+		</ul>
+	</div>
+	<div class="nav-sub-section">
+		<h2>RSS Feed</h2>
+		<p>
+			<a href="/rss.xml" class="feed-link">Subscribe</a>
+		</p>
+	</div>
+</div>		</div>
+	</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width">
+		<title>Is Linq X-OrDefault Evil?</title>
+		<link rel="stylesheet" type="text/css" href="/Static/main.css">
+	</head>
+	<body>
+<div class="header">
+	<div class="header-title">
+		<a href="/" class="title-link">
+			<h1>gwerren.com</h1>
+			<h2>Programming notes and tools...</h2>
+		</a>
+	</div>
+</div>		<div class="main-container">
+			<div class="main-section">
+				<div class="post-title-section">
+					<h1 class="post-title">Is Linq X-OrDefault Evil?</h1>
+					<div class="post-tags">
+<a href="/Blog/Tags/linq" class="tag">Linq</a><a href="/Blog/Tags/csharp" class="tag">C#</a>					</div>
+				</div>
+				<p>Linq is definitely one of my favorite language features in C#. It makes it simple to express set-based business logic concisely, and if used well can be a very powerful tool in your arsenal. As with any powerful tool, however it is very easy to use it badly.</p>
+
+<p>Today I want to talk about the "select one" family of methods (listed below) and how to choose the right one.</p>
+
+<ul>
+<li>Single()</li>
+<li>First()</li>
+<li>Last()</li>
+<li>The OrDefault versions of the above</li>
+</ul>
+
+<p>Let's start with an example of bad usage that I see very often:</p>
+
+<pre><code>var age = people.FirstOrDefault(o =&gt; o.Name == name).Age;
+</code></pre>
+
+<p>In the above code, we find the age of the person with the given name. There are two separate problems with this line of code, both related to the use of FirstOrDefault().</p>
+
+<p>First, let's look at the use of the OrDefault version of the method. The OrDefault version will return the default value for the type if no elements are found (if we assume that the person type is a class this would be null) whilst the plain versions (e.g. First()) will throw an exception.</p>
+
+<p>In the code above we use FirstOrDefault() and immediately try to access a property on the object. If there were no people then this will throw a null reference exception. This is the same problem as discussed in my previous post on <a href="failEarlyInCode">failing early</a> where the source of an error is being masked making it harder to track down.</p>
+
+<p>This type of possible problem applies to all the OrDefault versions of the "select one" methods.</p>
+
+<p>Let's fix this by changing the method to First() as follows:</p>
+
+<pre><code>var age = people.First(o =&gt; o.Name == name).Age;
+</code></pre>
+
+<p>Now let's imagine that the requested name is Bob and in the system there are two people called Bob. Is it valid to pick the first one? The answer is probably no.</p>
+
+<p>The question you need to ask when writing this code is "is it valid for more than one person to have the same name?"</p>
+
+<p>If the answer to this question is yes then you need to work out what you do in that situation - possibly you need to select a set of ages or use more than just name to filter the set in the first place.</p>
+
+<p>If the answer is no (perhaps Name here is a unique username) then you should use the Single() rather than First() version of the method. Single() will throw an exception if more than one match is found. This gives you built in data integrity checks and means that our assumption is both validated when the code is run and made clear to anyone working on the code in the future. <a href="failEarlyInCode">Failing early</a> like this will also make it easier to track down any issues that arise. If a user reports an exception thrown by the Single() call, you can immediately see there are multiple people with the same name. If you used First() then you could get an error report saying for example the system claims Bob only has 5 years to retirement but the user knows he is only 23 - now you have to track back from the part of the system calculating retirement age to this code to find the problem. You may even find that this bug is occurring but not being spotted which is even worse.</p>
+
+<p>This type of problem also applies to the Last() method since like First() it will pick one element from a set of one or more.</p>
+
+<h2>Summary</h2>
+
+<p>When selecting one from a set you should ask the following two questions:</p>
+
+<p>Is it valid for the set to ever be empty and if so does my calling code handle this case?</p>
+
+<ul>
+<li>If the answer is no then don't use OrDefault</li>
+</ul>
+
+<p>Is it valid for the set to ever contain more than one item.</p>
+
+<ul>
+<li>If the answer is no then use Single().</li>
+<li>If the answer is yes then you need to ask whether picking the first or last element is correct in the context it is being used. If not you should not be picking a single element in the first place</li>
+</ul>
+			</div>
+<div class="nav-section">
+	<div class="nav-sub-section">
+		<h2>About</h2>
+		<p>
+			I am a C# developer working in the finance sector in London, England. This is my personal site where I write about things that interest me (when I have the time!).
+		</p>
+		<p>
+			Here you will find personal projects along with blog articles about programming topics that interest me.
+		</p>
+	</div>
+	<div class="nav-sub-section">
+		<ul class="nav-project-list">
+				<li>
+					<div>
+						<a href="/Projects/multiCaret" class="list-link"><h2>Multi-Caret</h2></a>
+						<p class="nav-project-description">A Visual Studio plugin for multi-point editing</p>
+					</div>
+				</li>
+		</ul>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Tags</h2>
+		<div class="nav-tags">
+<a href="/Blog/Tags/csharp" class="tag">C#</a><a href="/Blog/Tags/cast" class="tag">Cast</a><a href="/Blog/Tags/exceptions" class="tag">Exceptions</a><a href="/Blog/Tags/linq" class="tag">Linq</a><a href="/Blog/Tags/multicaret" class="tag">Multi-Caret</a><a href="/Blog/Tags/mvvm" class="tag">MVVM</a><a href="/Blog/Tags/visualstudio" class="tag">Visual Studio</a><a href="/Blog/Tags/wpf" class="tag">WPF</a>		</div>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Latest Blog Posts</h2>
+		<ul class="no-bullets">
+				<li><a href="/Blog/Posts/mvvmCodeBehind" class="list-link">MVVM and Code Behind</a></li>
+				<li><a href="/Blog/Posts/introducingMultiCaret" class="list-link">Introducing Multi-Caret</a></li>
+				<li><a href="/Blog/Posts/basicCastingInCSharp" class="list-link">Basic Casting in C#</a></li>
+				<li><a href="/Blog/Posts/reportingExceptions" class="list-link">Reporting Exceptions</a></li>
+				<li><a href="/Blog/Posts/isLinqXOrDefaultEvil" class="list-link">Is Linq X-OrDefault Evil?</a></li>
+				<li><a href="/Blog/Posts/failEarlyInCode" class="list-link">Fail Early In Code</a></li>
+				<li><a href="/Blog/Posts/rethrowingExceptions" class="list-link">Rethrowing Exceptions</a></li>
+			<li class="spacing-item"></li>
+			<li><a href="/AllPosts">All Posts...</a></li>
+		</ul>
+	</div>
+	<div class="nav-sub-section">
+		<h2>RSS Feed</h2>
+		<p>
+			<a href="/rss.xml" class="feed-link">Subscribe</a>
+		</p>
+	</div>
+</div>		</div>
+	</body>
+</html>

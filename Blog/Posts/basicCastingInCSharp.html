@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width">
+		<title>Basic Casting in C#</title>
+		<link rel="stylesheet" type="text/css" href="/Static/main.css">
+	</head>
+	<body>
+<div class="header">
+	<div class="header-title">
+		<a href="/" class="title-link">
+			<h1>gwerren.com</h1>
+			<h2>Programming notes and tools...</h2>
+		</a>
+	</div>
+</div>		<div class="main-container">
+			<div class="main-section">
+				<div class="post-title-section">
+					<h1 class="post-title">Basic Casting in C#</h1>
+					<div class="post-tags">
+<a href="/Blog/Tags/cast" class="tag">Cast</a><a href="/Blog/Tags/csharp" class="tag">C#</a>					</div>
+				</div>
+				<p>In C# you will often find you have a variable of one type that you know is also another type. For example you may have an Animal variable that you know is actually a Dog and you want to ask it to bark. Alternatively you may have an Animal variable and not know what type of animal it is but if it is a Dog you want to ask it to bark.</p>
+
+<p>This switching between types is called casting. There are two basic ways of casting in C#.</p>
+
+<pre><code>var myDog = (Dog)myAnimal;
+</code></pre>
+
+<p>In this example we cast the variable called myAnimal to a Dog by putting the type Dog in brackets before the variable. This form of casting will throw an exception if the variable myAnimal cannot be cast to a Dog.</p>
+
+<pre><code>var myDog = myAnimal as Dog;
+</code></pre>
+
+<p>In this example we cast myAnimal to a Dog by putting "as Dog" after it. This will attempt to cast myAnimal to a Dog and if it fails, rather than throwing an exception will set myDog to null. This is useful in the case where you are not sure what type of animal myAnimal is but if it is a Dog you want it to bark, you can cast like this then check for null before asking myDog to bark.</p>
+
+<p>Note that the "as" form of casting can only be used on reference types and nullable value types as it needs to be able to create a null value if the cast is not possible.</p>
+
+<p>To complement "as" there is also an "is" command. This allows you to check if a variable can be cast to a particular type without actually performing the cast as follows:</p>
+
+<pre><code>var isDog = myAnimal is Dog;
+</code></pre>
+
+<h2>Picking the Right Cast</h2>
+
+<p>I often see code like the following:</p>
+
+<pre><code>var myDog = myAnimal as Dog;
+myDog.Bark();
+</code></pre>
+
+<p>This code uses the "as" method of casting to get a Dog but then assumes that myDog will not be null. If myAnimal cannot be cast to a Dog then the second line where we call Bark() will throw a null reference exception. As discussed in my post on <a href="failEarlyInCode">failing early</a> this will mask the source of the error when you look at an exception thrown here. There are two things we could do here to make this code better.</p>
+
+<p>If we believe myAnimal will always be a Dog then we could use the following code. This will mean that if for some reason myAnimal is not a Dog we will get an invalid cast exception from the first line which is far better. It also tells anyone reading the code later that we expect myAnimal to always be a Dog at this point in the code.</p>
+
+<pre><code>var myDog = (Dog)myAnimal;
+myDog.Bark();
+</code></pre>
+
+<p>If we are not sure what type myAnimal actually is then we could use the following code.</p>
+
+<pre><code>var myDog = myAnimal as Dog;
+if (myDog != null)
+    myDog.Bark();
+</code></pre>
+
+<p>Here we attempt to cast to a Dog and then check to see if the cast was successful before barking.</p>
+			</div>
+<div class="nav-section">
+	<div class="nav-sub-section">
+		<h2>About</h2>
+		<p>
+			I am a C# developer working in the finance sector in London, England. This is my personal site where I write about things that interest me (when I have the time!).
+		</p>
+		<p>
+			Here you will find personal projects along with blog articles about programming topics that interest me.
+		</p>
+	</div>
+	<div class="nav-sub-section">
+		<ul class="nav-project-list">
+				<li>
+					<div>
+						<a href="/Projects/multiCaret" class="list-link"><h2>Multi-Caret</h2></a>
+						<p class="nav-project-description">A Visual Studio plugin for multi-point editing</p>
+					</div>
+				</li>
+		</ul>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Tags</h2>
+		<div class="nav-tags">
+<a href="/Blog/Tags/csharp" class="tag">C#</a><a href="/Blog/Tags/cast" class="tag">Cast</a><a href="/Blog/Tags/exceptions" class="tag">Exceptions</a><a href="/Blog/Tags/linq" class="tag">Linq</a><a href="/Blog/Tags/multicaret" class="tag">Multi-Caret</a><a href="/Blog/Tags/mvvm" class="tag">MVVM</a><a href="/Blog/Tags/visualstudio" class="tag">Visual Studio</a><a href="/Blog/Tags/wpf" class="tag">WPF</a>		</div>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Latest Blog Posts</h2>
+		<ul class="no-bullets">
+				<li><a href="/Blog/Posts/mvvmCodeBehind" class="list-link">MVVM and Code Behind</a></li>
+				<li><a href="/Blog/Posts/introducingMultiCaret" class="list-link">Introducing Multi-Caret</a></li>
+				<li><a href="/Blog/Posts/basicCastingInCSharp" class="list-link">Basic Casting in C#</a></li>
+				<li><a href="/Blog/Posts/reportingExceptions" class="list-link">Reporting Exceptions</a></li>
+				<li><a href="/Blog/Posts/isLinqXOrDefaultEvil" class="list-link">Is Linq X-OrDefault Evil?</a></li>
+				<li><a href="/Blog/Posts/failEarlyInCode" class="list-link">Fail Early In Code</a></li>
+				<li><a href="/Blog/Posts/rethrowingExceptions" class="list-link">Rethrowing Exceptions</a></li>
+			<li class="spacing-item"></li>
+			<li><a href="/AllPosts">All Posts...</a></li>
+		</ul>
+	</div>
+	<div class="nav-sub-section">
+		<h2>RSS Feed</h2>
+		<p>
+			<a href="/rss.xml" class="feed-link">Subscribe</a>
+		</p>
+	</div>
+</div>		</div>
+	</body>
+</html>

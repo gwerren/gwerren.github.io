@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width">
+		<title>Reporting Exceptions</title>
+		<link rel="stylesheet" type="text/css" href="/Static/main.css">
+	</head>
+	<body>
+<div class="header">
+	<div class="header-title">
+		<a href="/" class="title-link">
+			<h1>gwerren.com</h1>
+			<h2>Programming notes and tools...</h2>
+		</a>
+	</div>
+</div>		<div class="main-container">
+			<div class="main-section">
+				<div class="post-title-section">
+					<h1 class="post-title">Reporting Exceptions</h1>
+					<div class="post-tags">
+<a href="/Blog/Tags/exceptions" class="tag">Exceptions</a><a href="/Blog/Tags/csharp" class="tag">C#</a>					</div>
+				</div>
+				<p>If in code you are reporting an exception then you will have one or both of the following use cases in mind:</p>
+
+<ol>
+<li>An end user being able to look at the error details and solve the problem.</li>
+<li>The exception information being sent to you or a developer colleague to look at and resolve the problem.</li>
+</ol>
+
+<p>For users you want a simple and descriptive message that tells the user what went wrong and how to fix it. The following would be a good example:</p>
+
+<pre><code>The employee 'Frank' was not found in the database.
+</code></pre>
+
+<p>This tells the user why the error occurred and implies possible solutions (e.g. enter a different name or add the employee to the database). By including the name in the error the user can see if it is correct (maybe they typed it incorrectly) and by putting quotes around it even if the name is blank the user can see that it was blank.</p>
+
+<p>For developers however we want as much information as possible including full stack traces and the very original exception that was thrown so we can start investigating as close to the source of the problem as possible.</p>
+
+<p>Looking at these two use cases they appear to be competing, if we display all the exception details including inner exceptions and stack traces to an end user then even if there is a useful error message in there they will most likely look at the entire lot, panic and send it to you. If however you only display the outer-most exceptions message then if it is not something obvious (e.g. it could be a generic null reference exception for example) the user will send it to you anyway and you will have a horrible time trying to track down where it is coming from.</p>
+
+<p>The solution I have used many times now is to have a custom exception dialog that when first displayed shows only the outer-most exceptions message but that has a "Show Details" button which shows the full exception output (including stack traces and all inner exceptions).</p>
+
+<pre><code>Tip: To show the full exception details including all inner exceptions and stack traces you can simply call .ToString() on the exception.
+</code></pre>
+
+<p>This gives the best of both worlds and I find works very well. It means that if an exception is thrown with a user resolvable error message you don't even hear about it and the user is happy because they didn't have to wait for you in order to finish what they were doing. If however an exception is thrown that the user does not understand they can give you the full details and you can hopefully work out what is going on pretty quickly, saving you time and thus keeping the user happier.</p>
+
+<p>Remember that whenever you catch an exception and then throw a new exception with more context or a meaningful message, you should always include the exception that you caught as the inner exception. Take our example above where we have thrown an exception saying "The employee 'Frank' was not found in the database.". This could be correct but what if Frank is in the database? The user will then send you the error details and tell you "but Frank exists". It may be that the database has gone offline or the system is connecting to the wrong database or something else entirely. If you have the inner exceptions you will hopefully be able to see that immediately and then quickly rectify the problem. Without the inner exceptions you are far more likely to end up spending ages trying to track down the problem.</p>
+
+<p>When reporting an exception to a user there are some types that we may want to show the message from an inner exception as it is more likely to help the end user. For instance the TargetInvocationException, this has the message "Exception has been thrown by the target of an invocation." and occurs when you call a method using reflection that throws an exception. Obviously this exception has an end user unfriendly message and is also fairly generic, however the exception that was actually thrown by the target may have a very end user friendly message. What I do for exceptions like this is look to see if they have an inner exception and if so display the message from that exception to the user. It is still useful to include all the exceptions in the "show details" view however as it may help you or another developer track down an issue faster.</p>
+			</div>
+<div class="nav-section">
+	<div class="nav-sub-section">
+		<h2>About</h2>
+		<p>
+			I am a C# developer working in the finance sector in London, England. This is my personal site where I write about things that interest me (when I have the time!).
+		</p>
+		<p>
+			Here you will find personal projects along with blog articles about programming topics that interest me.
+		</p>
+	</div>
+	<div class="nav-sub-section">
+		<ul class="nav-project-list">
+				<li>
+					<div>
+						<a href="/Projects/multiCaret" class="list-link"><h2>Multi-Caret</h2></a>
+						<p class="nav-project-description">A Visual Studio plugin for multi-point editing</p>
+					</div>
+				</li>
+		</ul>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Tags</h2>
+		<div class="nav-tags">
+<a href="/Blog/Tags/csharp" class="tag">C#</a><a href="/Blog/Tags/cast" class="tag">Cast</a><a href="/Blog/Tags/exceptions" class="tag">Exceptions</a><a href="/Blog/Tags/linq" class="tag">Linq</a><a href="/Blog/Tags/multicaret" class="tag">Multi-Caret</a><a href="/Blog/Tags/mvvm" class="tag">MVVM</a><a href="/Blog/Tags/visualstudio" class="tag">Visual Studio</a><a href="/Blog/Tags/wpf" class="tag">WPF</a>		</div>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Latest Blog Posts</h2>
+		<ul class="no-bullets">
+				<li><a href="/Blog/Posts/mvvmCodeBehind" class="list-link">MVVM and Code Behind</a></li>
+				<li><a href="/Blog/Posts/introducingMultiCaret" class="list-link">Introducing Multi-Caret</a></li>
+				<li><a href="/Blog/Posts/basicCastingInCSharp" class="list-link">Basic Casting in C#</a></li>
+				<li><a href="/Blog/Posts/reportingExceptions" class="list-link">Reporting Exceptions</a></li>
+				<li><a href="/Blog/Posts/isLinqXOrDefaultEvil" class="list-link">Is Linq X-OrDefault Evil?</a></li>
+				<li><a href="/Blog/Posts/failEarlyInCode" class="list-link">Fail Early In Code</a></li>
+				<li><a href="/Blog/Posts/rethrowingExceptions" class="list-link">Rethrowing Exceptions</a></li>
+			<li class="spacing-item"></li>
+			<li><a href="/AllPosts">All Posts...</a></li>
+		</ul>
+	</div>
+	<div class="nav-sub-section">
+		<h2>RSS Feed</h2>
+		<p>
+			<a href="/rss.xml" class="feed-link">Subscribe</a>
+		</p>
+	</div>
+</div>		</div>
+	</body>
+</html>

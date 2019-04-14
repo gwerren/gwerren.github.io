@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width">
+		<title>Fail Early In Code</title>
+		<link rel="stylesheet" type="text/css" href="/Static/main.css">
+	</head>
+	<body>
+<div class="header">
+	<div class="header-title">
+		<a href="/" class="title-link">
+			<h1>gwerren.com</h1>
+			<h2>Programming notes and tools...</h2>
+		</a>
+	</div>
+</div>		<div class="main-container">
+			<div class="main-section">
+				<div class="post-title-section">
+					<h1 class="post-title">Fail Early In Code</h1>
+					<div class="post-tags">
+<a href="/Blog/Tags/exceptions" class="tag">Exceptions</a><a href="/Blog/Tags/csharp" class="tag">C#</a>					</div>
+				</div>
+				<p>When writing code we should always consider error cases, this is a good thing. When attempting to handle an error case however we need to ensure that we are not simply delaying the error rather than solving the problem.</p>
+
+<p>Let's have an example:</p>
+
+<pre><code>private static Person GetOldestPerson(IList&lt;Person&gt; people)
+{
+    if (people.Count == 0)
+        return null;
+
+    var oldestPerson = people[0];
+    for (int i = 1; i &lt; people.Count; ++i)
+    {
+        if (people[i].Age &gt; oldestPerson.Age)
+            oldestPerson = people[i];
+    }
+
+    return oldestPerson;
+}
+</code></pre>
+
+<p>In this code there is a check at the beginning of the method for there being no people in which case null is returned. This seems like a reasonable check and a reasonable default however we have not considered how this code is used. Let's have a simple usage example:</p>
+
+<pre><code>var oldestPerson = GetOldestPerson(people); 
+return oldestPerson.Age;
+</code></pre>
+
+<p>In this example the caller of GetOldestPerson is assuming that a person will always be returned, if null is returned then a null reference exception will be thrown on the following line.</p>
+
+<p>Now imagine you get a nice error report with the exception details in it - the exception will not tell you where the real source of the error is (no people). In this example you could work that out pretty quickly by inspecting the code. Imagine however that you have a lot of complex code between the line calling the GetOldestPerson method and where it is used, the error could even happen several methods away just to make life more complicated. Now all of a sudden what should have been a 30 second inspection (oh - you have no people) can turn into several hours of trawling through code trying to trace back the error, especially if you don't have access to the same copy of the system which is producing the error.</p>
+
+<p>You could argue that the calling code should immediately check the result from GetOldestPerson and throw a useful error if it is null. In an ideal world this is great but in most real code doing this in thousands of places is impractical and unnecessary. If this method is only called by your code and you don't expect or handle the no-people case in the callers then it would be better to let the GetOldestPerson method fail if there are no people. You could either keep the check but throw an exception with a useful message if there are no people or simply let the people[0] call throw an exception. Either of these will mean your exceptions help you find the source of the problem faster although the nice exception message may even allow your users to solve the problem for themselves.</p>
+			</div>
+<div class="nav-section">
+	<div class="nav-sub-section">
+		<h2>About</h2>
+		<p>
+			I am a C# developer working in the finance sector in London, England. This is my personal site where I write about things that interest me (when I have the time!).
+		</p>
+		<p>
+			Here you will find personal projects along with blog articles about programming topics that interest me.
+		</p>
+	</div>
+	<div class="nav-sub-section">
+		<ul class="nav-project-list">
+				<li>
+					<div>
+						<a href="/Projects/multiCaret" class="list-link"><h2>Multi-Caret</h2></a>
+						<p class="nav-project-description">A Visual Studio plugin for multi-point editing</p>
+					</div>
+				</li>
+		</ul>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Tags</h2>
+		<div class="nav-tags">
+<a href="/Blog/Tags/csharp" class="tag">C#</a><a href="/Blog/Tags/cast" class="tag">Cast</a><a href="/Blog/Tags/exceptions" class="tag">Exceptions</a><a href="/Blog/Tags/linq" class="tag">Linq</a><a href="/Blog/Tags/multicaret" class="tag">Multi-Caret</a><a href="/Blog/Tags/mvvm" class="tag">MVVM</a><a href="/Blog/Tags/visualstudio" class="tag">Visual Studio</a><a href="/Blog/Tags/wpf" class="tag">WPF</a>		</div>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Latest Blog Posts</h2>
+		<ul class="no-bullets">
+				<li><a href="/Blog/Posts/mvvmCodeBehind" class="list-link">MVVM and Code Behind</a></li>
+				<li><a href="/Blog/Posts/introducingMultiCaret" class="list-link">Introducing Multi-Caret</a></li>
+				<li><a href="/Blog/Posts/basicCastingInCSharp" class="list-link">Basic Casting in C#</a></li>
+				<li><a href="/Blog/Posts/reportingExceptions" class="list-link">Reporting Exceptions</a></li>
+				<li><a href="/Blog/Posts/isLinqXOrDefaultEvil" class="list-link">Is Linq X-OrDefault Evil?</a></li>
+				<li><a href="/Blog/Posts/failEarlyInCode" class="list-link">Fail Early In Code</a></li>
+				<li><a href="/Blog/Posts/rethrowingExceptions" class="list-link">Rethrowing Exceptions</a></li>
+			<li class="spacing-item"></li>
+			<li><a href="/AllPosts">All Posts...</a></li>
+		</ul>
+	</div>
+	<div class="nav-sub-section">
+		<h2>RSS Feed</h2>
+		<p>
+			<a href="/rss.xml" class="feed-link">Subscribe</a>
+		</p>
+	</div>
+</div>		</div>
+	</body>
+</html>
