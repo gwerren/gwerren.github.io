@@ -157,6 +157,14 @@ a.tag {
 	margin-left: 3px;
 	padding: 0 0 0 19px;
 	background: url("/Static/feed-icon.png") no-repeat 0 50%;
+	display: block;
+}
+
+.linked-in-link {
+	margin-left: 3px;
+	padding: 0 0 0 19px;
+	background: url("/Static/linked-in-icon.png") no-repeat 0 50%;
+	display: block;
 }
 
 @media only screen and (min-width: 768px) {
