@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width">
+		<title>Mercurial CSV Log</title>
+		<link rel="stylesheet" type="text/css" href="/Static/main.css">
+	</head>
+	<body>
+<div class="header">
+	<div class="header-title">
+		<a href="/" class="title-link">
+			<h1>gwerren.com</h1>
+			<h2>Programming notes and tools...</h2>
+		</a>
+	</div>
+</div>		<div class="main-container">
+			<div class="main-section">
+				<div class="post-title-section">
+					<h1 class="post-title">Mercurial CSV Log</h1>
+					<div class="post-tags">
+<a href="/Blog/Tags/mercurial" class="tag">Mercurial</a>					</div>
+				</div>
+				<p>At work recently I needed to produce a list of all commits to a certain folder in our source control system for a given time period for audit purposes. We use Mercurial for source control, develop on Windows and wanted the results in a spreadsheet readable format. This post is to remind myself how to do this next time I need to do it!</p>
+
+<p>To get a list of changes you need to use the <code>hg log</code> feature which you can filter using revsets. For my use case I wanted to filter by a given folder and date range and exclude merges (since merges generally do not include new code and add a lot of noise to the search). To achieve this I used the following command:</p>
+
+<pre><code>hg log -r"file('path:Required/Folder') and not merge() and date('&gt;2019-02-01') and date('&lt;2019-02-28')"
+</code></pre>
+
+<p>This will output all non-merge commits that affected <code>Required/Folder</code> in February (as far as I can tell the date filters are inclusive). The next step was to turn the output into csv format. <code>HG log</code> allows you to specify a <code>--template</code> parameter for formatting the output. Most of this is pretty simple, curly braces surround variables that can be piped to formatters (e.g. "{branch}" or "{date|shortdate}", in the second example shortdate is a formatter for the date variable). The fun comes when you want to include the commit description which could include commas, double quotes and new lines. </p>
+
+<p>The following template will output csv style details, one per line, with the last element being the description, quoted with any double quotes replaced by single quotes and any new lines being replaced by ' :: '. The most confusing thing here is the escaping of characters, any pair of double quotes is one escaped double quote for the windows command interpreter (so Mercurial will see individual double quotes), any backslash starts an escaped character in what Mercurial will see.</p>
+
+<pre><code>"{node|short},{branch},{author},{date|shortdate},""{join(splitlines(sub(r'""','\'',desc)), ' :: ')}""\r\n"
+</code></pre>
+
+<p>Breaking down the description segment we first use the <code>sub</code> method to substitute a double quote with a single quote in <code>desc</code>. We then wrap that in a call to <code>splitlines</code> which gives us a list of single line strings which we put back together using <code>join</code> and <code>' :: '</code>.</p>
+
+<p>Putting this all together we can run the whole thing and pipe the output to a file as in the following example which will produce a file called commits.csv:</p>
+
+<pre><code>hg log -r"file('path:Required/Folder') and not merge() and date('&gt;2019-02-01') and date('&lt;2019-02-28')" --template "{node|short},{branch},{author},{date|shortdate},""{join(splitlines(sub(r'""','\'',desc)), ' :: ')}""\r\n" &gt; commits.csv
+</code></pre>
+
+<h2>Resource Links</h2>
+
+<p>I found the following resources very useful in putting this together:</p>
+
+<ul>
+<li><a href="http://hgbook.red-bean.com/read/customizing-the-output-of-mercurial.html">http://hgbook.red-bean.com/read/customizing-the-output-of-mercurial.html</a></li>
+<li><a href="https://stackoverflow.com/questions/3575189/mercurial-log-with-one-liners">https://stackoverflow.com/questions/3575189/mercurial-log-with-one-liners</a></li>
+</ul>
+			</div>
+<div class="nav-section">
+	<div class="nav-sub-section">
+		<h2>About</h2>
+		<p>
+			I am a C# developer working in the finance sector in London, England. This is my personal site where I write about things that interest me (when I have the time!).
+		</p>
+		<p>
+			Here you will find personal projects along with blog articles about programming topics that interest me.
+		</p>
+	</div>
+	<div class="nav-sub-section">
+		<p>
+			<a href="/rss.xml" class="feed-link">Subscribe</a>
+			<a href="https://www.linkedin.com/in/gareth-werren" class="linked-in-link">My Profile</a>
+		</p>
+	</div>
+	<div class="nav-sub-section">
+		<ul class="nav-project-list">
+				<li>
+					<div>
+						<a href="/Projects/multiCaret" class="list-link"><h2>Multi-Caret</h2></a>
+						<p class="nav-project-description">A Visual Studio plugin for multi-point editing</p>
+					</div>
+				</li>
+		</ul>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Tags</h2>
+		<div class="nav-tags">
+<a href="/Blog/Tags/csharp" class="tag">C#</a><a href="/Blog/Tags/cast" class="tag">Cast</a><a href="/Blog/Tags/exceptions" class="tag">Exceptions</a><a href="/Blog/Tags/linq" class="tag">Linq</a><a href="/Blog/Tags/mercurial" class="tag">Mercurial</a><a href="/Blog/Tags/multicaret" class="tag">Multi-Caret</a><a href="/Blog/Tags/mvvm" class="tag">MVVM</a><a href="/Blog/Tags/visualstudio" class="tag">Visual Studio</a><a href="/Blog/Tags/wpf" class="tag">WPF</a>		</div>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Latest Blog Posts</h2>
+		<ul class="no-bullets">
+				<li><a href="/Blog/Posts/mercurialCsvLog" class="list-link">Mercurial CSV Log</a></li>
+				<li><a href="/Blog/Posts/mvvmCodeBehind" class="list-link">MVVM and Code Behind</a></li>
+				<li><a href="/Blog/Posts/introducingMultiCaret" class="list-link">Introducing Multi-Caret</a></li>
+				<li><a href="/Blog/Posts/basicCastingInCSharp" class="list-link">Basic Casting in C#</a></li>
+				<li><a href="/Blog/Posts/reportingExceptions" class="list-link">Reporting Exceptions</a></li>
+				<li><a href="/Blog/Posts/isLinqXOrDefaultEvil" class="list-link">Is Linq X-OrDefault Evil?</a></li>
+				<li><a href="/Blog/Posts/failEarlyInCode" class="list-link">Fail Early In Code</a></li>
+			<li class="spacing-item"></li>
+			<li><a href="/AllPosts">All Posts...</a></li>
+		</ul>
+	</div>
+</div>		</div>
+	</body>
+</html>

@@ -6,6 +6,13 @@
 		<description>Software development - mainly C#</description>
 		<atom:link href="http://gwerren.com/rss.xml" rel="self" type="application/rss+xml" />
 			<item>
+				<title>Mercurial CSV Log</title>
+				<link>http://gwerren.com/Blog/Posts/mercurialCsvLog</link>
+				<guid>http://gwerren.com/Blog/Posts/mercurialCsvLog</guid>
+				<pubDate>Mon 13 May 2019 00:00:00 GMT</pubDate>
+				<description>Generating a filtered CSV file of commits from Mercurial.</description>
+			</item>
+			<item>
 				<title>MVVM and Code Behind</title>
 				<link>http://gwerren.com/Blog/Posts/mvvmCodeBehind</link>
 				<guid>http://gwerren.com/Blog/Posts/mvvmCodeBehind</guid>
