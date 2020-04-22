@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width">
+		<title>HangFire as a Service Bus</title>
+		<link rel="stylesheet" type="text/css" href="/Static/main.css">
+	</head>
+	<body>
+<div class="header">
+	<div class="header-title">
+		<a href="/" class="title-link">
+			<h1>gwerren.com</h1>
+			<h2>Programming notes and tools...</h2>
+		</a>
+	</div>
+</div>		<div class="main-container">
+			<div class="main-section">
+				<div class="post-title-section">
+					<h1 class="post-title">HangFire as a Service Bus</h1>
+					<div class="post-tags">
+<a href="/Blog/Tags/hangfire" class="tag">HangFire</a><a href="/Blog/Tags/servicebus" class="tag">Service Bus</a><a href="/Blog/Tags/csharp" class="tag">C#</a>					</div>
+				</div>
+				<h2>Introduction</h2>
+
+<p>I have recently started using <a href="https://www.hangfire.io">HangFire</a> in a fairly large system that is currently hosted as a single web app.</p>
+
+<p>HangFire has many different uses including running regular scheduled tasks however one great use is to move important or time consuming work to a background job that can be monitored and re-run if needed.</p>
+
+<p>Imagine a system holds user status information and needs to call a third party system to inform it when the user changes their status. Now lets assume we don't want status updating to fail if the third party system is off-line. In this case moving the call to the third party system to a HangFire job could give the separation and reliability we need.</p>
+
+<p>Taking the example a bit further lets assume we now need to add a call to another third party system when a user updates their status. Here we could simply create a second HangFire job like the first but targeting the new third party system.</p>
+
+<p>This is all good however as things grow we may want to separate out parts of our system at which point we may look to move to a service bus style architecture (I won't go into why you would want to in this post, there are plenty of good resources available on the web). Moving from HangFire to a service bus implementation will be pretty hard if we have HangFire <code>BackgroundJob.Enqueue</code> calls scattered all over our code.</p>
+
+<p>In this post I will look at how we could wrap HangFire in such a way to make it far easier to move to a full fledged service bus (like <a href="https://masstransit-project.com/">MassTransit</a>, I will reference this a fair bit in this post as I have experience using it) when the time comes.</p>
+
+<p>So why wouldn't I start a full service bus to start with? The answer is simple, a full blown service bus is a lot more infrastructure to run, HangFire runs within the existing web app.</p>
+
+<h2>Required Features</h2>
+
+<ul>
+<li>Ability to publish event messages</li>
+<li>Ability to have multiple listeners subscribe to event messages</li>
+<li>Ability to substitute in a service bus (like MassTransit) without changing all the places events are published</li>
+<li>This should all work with ASP.NET Core and play nicely with dependency injection</li>
+</ul>
+
+<p><em>NB: When I use terms like "publish" above I mean that to the calling code it should look like publishing</em></p>
+
+<h2>Code on GitHub</h2>
+
+<p>I have published a repository on GitHub (<a href="https://github.com/gwerren/HangFireServiceBusFacadeExample">HangFireServiceBusFacadeExample</a>) which contains the sample code I reference in the rest of this post. It has a series of commits with the important ones as follows:</p>
+
+<ol>
+<li>Add a basic service bus facade for HangFire with some example event messages and consumers</li>
+<li>Use IBackgroundJobClient instead of BackgroundJob</li>
+<li>Pass a context containing the message to consumers rather than passing the message directly</li>
+</ol>
+
+<h2>First Version</h2>
+
+<h3>IMessagePublisher</h3>
+
+<p>To start with lets define a simple event publishing interface.</p>
+
+<pre><code>public interface IMessagePublisher
+{
+    Task Publish&lt;TMessage&gt;(TMessage message)
+        where TMessage : class, new();
+}
+</code></pre>
+
+<p>This only has a single <code>Publish</code> method which takes an instance of a message. We place a couple of restrictions on the message type, making it more likely to be able to be used with with the JSON serialization used in HangFire. We also make the <code>Publish</code> method return <code>Task</code>, allowing the use of <code>async</code> implementations if desired. Whilst HangFire job creation does not currently support <code>async</code> creation other service bus implementations do so this gives a good amount of future proofing.</p>
+
+<p><em>NB: Some service bus implementations (including MassTransit) advise using interfaces instead of objects for the messages, that is not possible with this approach (at least not without more effort) however the general advice about avoiding inheritance in message types should still be followed</em></p>
+
+<h3>IMessageConsumer</h3>
+
+<p>Now we need to define an interface for a consumer of a message.</p>
+
+<pre><code>public interface IMessageConsumer&lt;TMessage&gt;
+    where TMessage: class, new()
+{
+    Task Consume(TMessage message);
+}
+</code></pre>
+
+<p>Like the publishing interface this is pretty simple and has a single method, <code>Consume</code>, which takes the message to be consumed. The restrictions on the message type are the same as before and the method returns <code>Task</code> which allows consumers to use <code>async</code> methods which a lot of consumers are likely to require.</p>
+
+<h3>Implementation / Configuration</h3>
+
+<p>We now need an implementation of the <code>IMessagePublisher</code> that we can register as a service with the service collection in ASP.NET Core. This should in turn support registering consumers for specific message types. First lets have a look at how we might perform the registration in the <code>Startup.ConfigureServices</code> method:</p>
+
+<pre><code>services.AddSingleton&lt;IMessagePublisher&gt;(
+    o =&gt; new MessagePublisher()
+        .For&lt;TestEvent&gt;(
+            messageConfig =&gt; messageConfig
+                .Consumer&lt;TestEventConsumer1&gt;()
+                .Consumer&lt;TestEventConsumer2&gt;())
+        .For&lt;WeatherForecastsRequestedEvent&gt;(
+            messageConfig =&gt; messageConfig.Consumer&lt;WeatherForecastsRequestedEventConsumer&gt;()));
+</code></pre>
+
+<p><em>Notice the fluent style API for configuring the publisher, this is common for this sort of configuration as it makes reading and writing configuration easier</em></p>
+
+<p>For the implementation we have the following code:</p>
+
+<pre><code>public interface IMessageTypeConfigurator&lt;TMessage&gt;
+    where TMessage: class, new()
+{
+    IMessageTypeConfigurator&lt;TMessage&gt; Consumer&lt;TConsumer&gt;()
+        where TConsumer : IMessageConsumer&lt;TMessage&gt;;
+}
+
+public class MessagePublisher : IMessagePublisher
+{
+    private readonly IDictionary&lt;Type, IMessageConsumerSet&gt; consumerSetsByMessageType
+        = new Dictionary&lt;Type, IMessageConsumerSet&gt;();
+
+    public MessagePublisher For&lt;TMessage&gt;(Action&lt;IMessageTypeConfigurator&lt;TMessage&gt;&gt; configure)
+        where TMessage: class, new()
+    {
+        if (!this.consumerSetsByMessageType.TryGetValue(typeof(TMessage), out var consumerSet))
+        {
+            consumerSet = new MessageConsumerSet&lt;TMessage&gt;();
+            this.consumerSetsByMessageType.Add(typeof(TMessage), consumerSet);
+        }
+
+        configure((MessageConsumerSet&lt;TMessage&gt;)consumerSet);
+        return this;
+    }
+
+    public Task Publish&lt;TMessage&gt;(TMessage message) where TMessage : class, new()
+    {
+        if (this.consumerSetsByMessageType.TryGetValue(typeof(TMessage), out var consumerSet))
+            ((MessageConsumerSet&lt;TMessage&gt;)consumerSet).Publish(message);
+
+        return Task.CompletedTask;
+    }
+
+    private interface IMessageConsumerSet { }
+
+    private class MessageConsumerSet&lt;TMessage&gt; : IMessageConsumerSet, IMessageTypeConfigurator&lt;TMessage&gt;
+        where TMessage : class, new()
+    {
+        private readonly IList&lt;IConsumerWrapper&gt; consumers = new List&lt;IConsumerWrapper&gt;();
+
+        public IMessageTypeConfigurator&lt;TMessage&gt; Consumer&lt;TConsumer&gt;()
+            where TConsumer : IMessageConsumer&lt;TMessage&gt;
+        {
+            this.consumers.Add(new ConsumerWrapper&lt;TConsumer&gt;());
+            return this;
+        }
+
+        public void Publish(TMessage message)
+        {
+            foreach (var consumer in this.consumers)
+                consumer.Publish(message);
+        }
+
+        private interface IConsumerWrapper
+        {
+            void Publish(TMessage message);
+        }
+
+        private class ConsumerWrapper&lt;TConsumer&gt; : IConsumerWrapper
+            where TConsumer : IMessageConsumer&lt;TMessage&gt;
+        {
+            public void Publish(TMessage message)
+            {
+                // Here we create the HangFire jobs for the registered consumers
+                BackgroundJob.Enqueue&lt;TConsumer&gt;(c =&gt; c.Consume(message));
+            }
+        }
+    }
+}
+</code></pre>
+
+<p>This is pretty straight forward, we have a <code>MessageConsumerSet</code> that wraps up all the consumers for a specific message type. Each consumer is then individually wrapped in a <code>ConsumerWrapper</code> which has the task of calling <code>BackgroundJob.Enqueue</code> in a strongly typed manner.</p>
+
+<h3>Usage</h3>
+
+<p>Now that we have an implementation of <code>IMessagePublisher</code> registered with the service provider, anywhere we want to publish event messages we can simply request the <code>IMessagePublisher</code> and publish a new message.</p>
+
+<p>It is important to note that, since the consumer implementations will be resolved by HangFire when the jobs are executed and in the ASP.NET Core HangFire implementation the built in service provider is used for dependency resolution, we can write the <code>IMessageConsumer</code> implementations with constructor dependencies and they will be resolved for us. We don't need to register every consumer as a service though since HangFire takes a hybrid approach to resolution at the top level.</p>
+
+<h2>Second Version</h2>
+
+<p>Rather than calling the static <code>BackgroundJob.Enqueue</code> HangFire method we may instead want to use the <code>IBackgroundJobClient.Enqueue</code> method. To do this we need to request an instance of <code>IBackgroundJobClient</code> from the service provider and pass it into the <code>MessagePublisher</code>. This is a pretty simple thing to do and can be seen in the <a href="https://github.com/gwerren/HangFireServiceBusFacadeExample/commit/7e7d2990e78de3f8fe8c6feb0f31f2cd5d269498">GitHub commit</a>.</p>
+
+<h2>Third Version</h2>
+
+<p>Something that some service bus implementations do is to pass a context object to consumers rather than just the raw message. This context contains the message along with other things such as the ability to publish new, linked events. We won't try to link messages that are published as a result of a previous message however we will look to pass a context with the message and a publish method.</p>
+
+<h3>Interfaces</h3>
+
+<p>First lets define a context and update the <code>IMessageConsumer</code> interface to use it:</p>
+
+<pre><code>public interface IMessageConsumer&lt;TMessage&gt;
+    where TMessage: class, new()
+{
+    Task Consume(IConsumeContext&lt;TMessage&gt; context);
+}
+
+public interface IConsumeContext&lt;TMessage&gt;
+{
+    TMessage Message { get; }
+
+    Task Publish&lt;TPublishMessage&gt;(TPublishMessage message)
+        where TPublishMessage: class, new();
+}
+</code></pre>
+
+<p>The <code>IConsumeContext</code> is pretty simple, it has a publish method that matches the <code>IMessagePublisher</code> interface along with a property for the message itself.</p>
+
+<h3>Creating the Context</h3>
+
+<p>Now we need to change the <code>ConsumerWrapper</code> that we defined previously to include creation of the context. We can do this by defining a simple class (in this case <code>MessageConsumerWithContext</code>) which wraps up the creation of the context object and itself exposes a <code>Consume</code> method that takes the raw message.</p>
+
+<p>Here is the change to the <code>ConsumerWrapper</code>.</p>
+
+<pre><code>private class ConsumerWrapper&lt;TConsumer&gt; : IConsumerWrapper
+    where TConsumer : IMessageConsumer&lt;TMessage&gt;
+{
+    public void Publish(IBackgroundJobClient backgroundJobClient, TMessage message)
+    {
+        // Here we create the HangFire jobs for the registered consumers
+        backgroundJobClient.Enqueue&lt;MessageConsumerWithContext&lt;TMessage, TConsumer&gt;&gt;(
+            c =&gt; c.Consume(message));
+    }
+}
+</code></pre>
+
+<p>And here is the <code>MessageConsumerWithContext</code> implementation.</p>
+
+<pre><code>public class MessageConsumerWithContext&lt;TMessage, TConsumer&gt;
+    where TMessage : class, new()
+    where TConsumer : IMessageConsumer&lt;TMessage&gt;
+{
+    private readonly IMessagePublisher messagePublisher;
+    private readonly TConsumer messageConsumer;
+
+    public MessageConsumerWithContext(IMessagePublisher messagePublisher, TConsumer messageConsumer)
+    {
+        this.messagePublisher = messagePublisher;
+        this.messageConsumer = messageConsumer;
+    }
+
+    public Task Consume(TMessage message)
+        =&gt; this.messageConsumer.Consume(new Context(this.messagePublisher, message));
+
+    private class Context : IConsumeContext&lt;TMessage&gt;
+    {
+        private readonly IMessagePublisher messagePublisher;
+
+        public Context(IMessagePublisher messagePublisher, TMessage message)
+        {
+            this.messagePublisher = messagePublisher;
+            this.Message = message;
+        }
+
+        public TMessage Message { get; }
+
+        public Task Publish&lt;TPublishMessage&gt;(TPublishMessage message)
+            where TPublishMessage : class, new()
+            =&gt; this.messagePublisher.Publish(message);
+    }
+}
+</code></pre>
+
+<h3>JobActivator</h3>
+
+<p>There is one little problem with this approach, remember how we were very happy to rely on the built-in dependency resolution in HangFire to create our consumer instances even if we hadn't registered them with the service provider? Now that won't work since the <code>MessageConsumerWithContext</code> is the top level object being instantiated. We could register every consumer with the service provider but we can do one better and define a custom HangFire <code>JobActivator</code>. The code for the ASP.NET version is pretty simple so we can copy that and modify it to also handle <code>MessageConsumerWithContext</code> as a special case as follows:</p>
+
+<pre><code>private class ContextAwareJobActivator : JobActivator
+{
+    private readonly IServiceScopeFactory serviceScopeFactory;
+
+    public ContextAwareJobActivator(IServiceScopeFactory serviceScopeFactory)
+        =&gt; this.serviceScopeFactory =
+            serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
+
+    public override JobActivatorScope BeginScope(JobActivatorContext context) =&gt; this.BeginScope();
+
+    public override JobActivatorScope BeginScope() =&gt; new Scope(this.serviceScopeFactory.CreateScope());
+
+    private class Scope : JobActivatorScope
+    {
+        private static readonly Type MessageConsumerWithContext = typeof(MessageConsumerWithContext&lt;,&gt;);
+        private readonly IServiceScope serviceScope;
+
+        public Scope(IServiceScope serviceScope)
+            =&gt; this.serviceScope = serviceScope ?? throw new ArgumentNullException(nameof(serviceScope));
+
+        public override object Resolve(Type type)
+        {
+            // MessageConsumerWithContext is a special type for us to create,
+            // delegating the creation of the actual consumer to the normal
+            // HangFire behavior for ASP.NET Core which allows the consumer
+            // types to not need to be directly registered with the DI container.
+            if (type.IsGenericType &amp;&amp; type.GetGenericTypeDefinition() == MessageConsumerWithContext)
+            {
+                return Activator.CreateInstance(
+                    type,
+                    this.serviceScope.ServiceProvider.GetService&lt;IMessagePublisher&gt;(),
+                    ActivatorUtilities.GetServiceOrCreateInstance(
+                        this.serviceScope.ServiceProvider,
+                        type.GenericTypeArguments[1]));
+            }
+
+            // If this is not a request for MessageConsumerWithContext then immediately default
+            // to the default HangFire behavior.
+            return ActivatorUtilities.GetServiceOrCreateInstance(this.serviceScope.ServiceProvider, type);
+        }
+
+        public override void DisposeScope() =&gt; this.serviceScope.Dispose();
+    }
+}
+</code></pre>
+
+<p>Finally we need to tell HangFire to use this new <code>JobActivator</code>, we do this in <code>Startup.ConfigureServices</code> within the <code>AddHangfire</code> call where we simply add the following additional line:</p>
+
+<pre><code>.UseActivator(new ContextAwareJobActivator(serviceProvider.GetService&lt;IServiceScopeFactory&gt;()))
+</code></pre>
+
+<p>I also decided to wrap the registration code within <code>Startup</code> in some friendly extension methods which can be found in the <a href="https://github.com/gwerren/HangFireServiceBusFacadeExample/commit/19c8ccca023fda5bf249a69d50d641e6cc3bee2c">GitHub commit</a>.</p>
+
+<h2>Conclusion and Additional Thoughts</h2>
+
+<p>HangFire is a great system, it is quick and easy to get started with and has a fairly low overhead in terms of hosting (since it is within the same process as the rest of your application). A system may well out-grow HangFire for some use-cases though, especially those that, in a larger system would be best-served by a service bus. We have seen here how it is possible to use a system like HangFire that fits well now whilst also making it far easier to transition in future if needed.</p>
+
+<p>One thing that I will leave as an exercise for the reader is to automatically register all consumers using reflection rather than using the fluent API. As the number of consumers grows, registering them all manually could become a major pain (not to mention potential source of bugs and merge conflicts).</p>
+			</div>
+<div class="nav-section">
+	<div class="nav-sub-section">
+		<h2>About</h2>
+		<p>
+			I am a C# developer working in the finance sector in London, England. This is my personal site where I write about things that interest me (when I have the time!).
+		</p>
+		<p>
+			Here you will find personal projects along with blog articles about programming topics that interest me.
+		</p>
+	</div>
+	<div class="nav-sub-section">
+		<p>
+			<a href="/rss.xml" class="feed-link">Subscribe</a>
+			<a href="https://www.linkedin.com/in/gareth-werren" class="linked-in-link">My Profile</a>
+			<a href="/Static/cv.pdf" class="cv-link">My CV</a>
+		</p>
+	</div>
+	<div class="nav-sub-section">
+		<ul class="nav-project-list">
+				<li>
+					<div>
+						<a href="/Projects/multiCaret" class="list-link"><h2>Multi-Caret</h2></a>
+						<p class="nav-project-description">A Visual Studio plugin for multi-point editing</p>
+					</div>
+				</li>
+		</ul>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Tags</h2>
+		<div class="nav-tags">
+<a href="/Blog/Tags/csharp" class="tag">C#</a><a href="/Blog/Tags/cast" class="tag">Cast</a><a href="/Blog/Tags/exceptions" class="tag">Exceptions</a><a href="/Blog/Tags/hangfire" class="tag">HangFire</a><a href="/Blog/Tags/linq" class="tag">Linq</a><a href="/Blog/Tags/mercurial" class="tag">Mercurial</a><a href="/Blog/Tags/multicaret" class="tag">Multi-Caret</a><a href="/Blog/Tags/mvvm" class="tag">MVVM</a><a href="/Blog/Tags/servicebus" class="tag">Service Bus</a><a href="/Blog/Tags/visualstudio" class="tag">Visual Studio</a><a href="/Blog/Tags/wpf" class="tag">WPF</a>		</div>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Latest Blog Posts</h2>
+		<ul class="no-bullets">
+				<li><a href="/Blog/Posts/hangfireAsAServiceBus" class="list-link">HangFire as a Service Bus</a></li>
+				<li><a href="/Blog/Posts/mercurialCsvLog" class="list-link">Mercurial CSV Log</a></li>
+				<li><a href="/Blog/Posts/mvvmCodeBehind" class="list-link">MVVM and Code Behind</a></li>
+				<li><a href="/Blog/Posts/introducingMultiCaret" class="list-link">Introducing Multi-Caret</a></li>
+				<li><a href="/Blog/Posts/basicCastingInCSharp" class="list-link">Basic Casting in C#</a></li>
+				<li><a href="/Blog/Posts/reportingExceptions" class="list-link">Reporting Exceptions</a></li>
+				<li><a href="/Blog/Posts/isLinqXOrDefaultEvil" class="list-link">Is Linq X-OrDefault Evil?</a></li>
+			<li class="spacing-item"></li>
+			<li><a href="/AllPosts">All Posts...</a></li>
+		</ul>
+	</div>
+</div>		</div>
+	</body>
+</html>

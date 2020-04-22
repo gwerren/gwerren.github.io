@@ -2,7 +2,7 @@
 <html>
 	<head>
 		<meta name="viewport" content="width=device-width">
-		<title>Rethrowing Exceptions</title>
+		<title>Tag: Service Bus</title>
 		<link rel="stylesheet" type="text/css" href="/Static/main.css">
 	</head>
 	<body>
@@ -15,40 +15,9 @@
 	</div>
 </div>		<div class="main-container">
 			<div class="main-section">
-				<div class="post-title-section">
-					<h1 class="post-title">Rethrowing Exceptions</h1>
-					<div class="post-tags">
-<a href="/Blog/Tags/exceptions" class="tag">Exceptions</a><a href="/Blog/Tags/csharp" class="tag">C#</a>					</div>
-				</div>
-				<p>You may want to catch and re-throw an exception for any number of reasons, one of the most common being to log some details about the exception but still let it propagate out to the calling code.</p>
-
-<p>I often see this being done as follows:</p>
-
-<pre><code>try
-{
-    DoStuff();
-}
-catch (Exception ex)
-{
-    Logger.Log(ex);
-    throw ex;
-}
-</code></pre>
-
-<p>The problem with the above code is in the line where we re-throw the exception:</p>
-
-<pre><code>throw ex;
-</code></pre>
-
-<p>When an exception is thrown by reference it has its stack trace filled in - in this case that means that the original stack trace about where the exception occurred will be overwritten with a stack trace pointing to this line.</p>
-
-<p>When you are in a catch block you can write the following instead:</p>
-
-<pre><code>throw;
-</code></pre>
-
-<p>This will cause the original exception that we caught to be re-thrown but will leave its stack trace as it was. This means that if we look at the exception higher up we will get an accurate picture of what went wrong.</p>
-			</div>
+				<h1>Tag: Service Bus</h1>
+<h2><a href="/Blog/Posts/hangfireAsAServiceBus">HangFire as a Service Bus</a></h2>
+<p class="post-list-description">An exploration of a way to use HangFire in a service-bus-like manner within a single application.</p>			</div>
 <div class="nav-section">
 	<div class="nav-sub-section">
 		<h2>About</h2>

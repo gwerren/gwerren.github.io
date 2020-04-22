@@ -6,6 +6,13 @@
 		<description>Software development - mainly C#</description>
 		<atom:link href="http://gwerren.com/rss.xml" rel="self" type="application/rss+xml" />
 			<item>
+				<title>HangFire as a Service Bus</title>
+				<link>http://gwerren.com/Blog/Posts/hangfireAsAServiceBus</link>
+				<guid>http://gwerren.com/Blog/Posts/hangfireAsAServiceBus</guid>
+				<pubDate>Wed, 22 Apr 2020 00:00:00 GMT</pubDate>
+				<description>An exploration of a way to use HangFire in a service-bus-like manner within a single application.</description>
+			</item>
+			<item>
 				<title>Mercurial CSV Log</title>
 				<link>http://gwerren.com/Blog/Posts/mercurialCsvLog</link>
 				<guid>http://gwerren.com/Blog/Posts/mercurialCsvLog</guid>
