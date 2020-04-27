@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width">
+		<title>JSON Data Mapper</title>
+		<link rel="stylesheet" type="text/css" href="/Static/main.css">
+	</head>
+	<body>
+<div class="header">
+	<div class="header-title">
+		<a href="/" class="title-link">
+			<h1>gwerren.com</h1>
+			<h2>Programming notes and tools...</h2>
+		</a>
+	</div>
+</div>		<div class="main-container">
+			<div class="main-section">
+				<div class="post-title-section">
+					<h1 class="post-title">JSON Data Mapper</h1>
+					<div class="post-tags">
+					</div>
+				</div>
+					<div class="sub-pages">
+								<a href="/Projects/jsonDataMapper" class="sub-page-link">Overview</a>
+								<span class="sub-page-current">Spec</span>
+					</div>
+				<h2>Direct Mapping</h2>
+
+<pre><code>Target = Source
+</code></pre>
+
+<p>Example:</p>
+
+<pre><code>Applicant.Age = Applicants.App1.Age
+</code></pre>
+
+<h3>Multiple Mapping Definitions</h3>
+
+<p>Multiple mapping definitions can be specified, one per line, e.g.:</p>
+
+<pre><code>Applicant.Age = Applicant.Age
+Applicant.PostCode = Applicant.Address.PostCode
+</code></pre>
+
+<p>Using this definition against the source JSON:</p>
+
+<pre><code>{
+    Applicant: {
+        Age: 23,
+        Address: {
+            HouseNameNumber: "Lime House",
+            Postcode: "AB12 3CD"
+        }
+    }
+}
+</code></pre>
+
+<p>Would produce the following target JSON:</p>
+
+<pre><code>{
+    Applicant: {
+        Age: 23,
+        PostCode: "AB12 3CD"
+    }
+}
+</code></pre>
+
+<p>Mapping definitions are applied in order so if we had the following mapping the application of the second line would overwrite the first, ending up with the target Address property containing the source HouseNameNumber value.</p>
+
+<pre><code>Applicant.Address = Applicant.Address.PostCode
+Applicant.Address = Applicant.Address.HouseNameNumber
+</code></pre>
+
+<h3>Source From or Target To Root</h3>
+
+<p>We may want to map the entire source object onto a property in the target (or map onto the entire target). This is done by leaving the source or target empty (since the path to root is empty).</p>
+
+<p>For example:</p>
+
+<ul>
+<li><code>SearchResult =</code> Would map the entire source object into the SearchResult property in the target object.</li>
+<li><code>= Applicant</code> Would map the Applicant property of the source onto the entire target.</li>
+<li><code>=</code> Would map the entire source onto the entire target.</li>
+</ul>
+
+<h3>Special Characters</h3>
+
+<p>Looking at a target or source definition we can see that each is a dot-separated list of path segments or nodes. e.g. in the definition, <code>Applicant.Address</code> there are two segments, <code>Applicant</code> and <code>Address</code>.</p>
+
+<p>A segment can be surrounded in double quotes and must be if it contains special characters, e.g. <code>Applicant.Address."First Name"</code>.</p>
+
+<p>Special characters are any that are not the following:</p>
+
+<ul>
+<li>Alphanumeric</li>
+<li>_</li>
+<li>-</li>
+</ul>
+
+<p>If a segment needs to contain a double quote then use a second double quote as an escape character, e.g. <code>"My ""Fun"" Name"</code> would be the correctly quoted and escaped representation of the segment name <code>My "Fun" Name</code>.</p>
+
+<h2>Variables</h2>
+
+<p>Variables are used to hold path segments within a JSON object. The variables are then used in place of explicitly writing out the full path.</p>
+
+<p>Variables are always of the form <code>$(name)</code> where <code>name</code> is a valid variable name.</p>
+
+<p>A variable name must only contain alphanumeric characters or the following special characters:</p>
+
+<ul>
+<li>_</li>
+<li>-</li>
+</ul>
+
+<h3>Property Capture</h3>
+
+<p>A variable can be used to capture all property names on a source object and then use those property names on the target object.</p>
+
+<p>So the following mapping:</p>
+
+<pre><code>Addresses[$(applicantId)] = Applicants[$(applicantId)].Address
+</code></pre>
+
+<p>Given the following source object:</p>
+
+<pre><code>{
+    Applicants: {
+        App1: {
+            Age: 23,
+            Address: {
+                HouseNameNumber: "Lime House",
+                Postcode: "AB12 3CD"
+            }
+        },
+        App2: {
+            Age: 23,
+            Address: {
+                HouseNameNumber: "23",
+                Postcode: "WX89 0YZ"
+            }
+        }
+    }
+}
+</code></pre>
+
+<p>Would produce the following target object:</p>
+
+<pre><code>{
+    Addresses: {
+        App1: {
+            HouseNameNumber: "Lime House",
+            Postcode: "AB12 3CD"
+        },
+        App2: {
+            HouseNameNumber: "23",
+            Postcode: "WX89 0YZ"
+        }
+    }
+}
+</code></pre>
+
+<h3>Filtering Property Capture</h3>
+
+<p>Variable values assigned through property capture can be filtered to restrict the set of values they capture.</p>
+
+<p>Filters must use the following rules:</p>
+
+<ul>
+<li>The most basic filter is defined as a string value that matches a value that could be assigned to the variable and acts to include only that value</li>
+<li>Can be combined using <code>&amp;&amp;</code> and <code>||</code> (for 'and' and 'or')</li>
+<li>Can be negated using <code>!</code></li>
+<li>Can be grouped / nested using brackets</li>
+<li>Can use basic pattern matching using the star (<code>*</code>) symbol as a wild-card</li>
+<li>If a filter contains whitespace or any special characters (other than a star - this is always treated as a wild-card) then it must be wrapped in double quotes</li>
+</ul>
+
+<p>Examples:</p>
+
+<ul>
+<li><code>App1</code> Only include the value App1 (assuming it exists otherwise no values will be included)</li>
+<li><code>!App1</code> Include any value that is not App1</li>
+<li><code>!App1 &amp;&amp; !App2</code> Include anything except App1 or App2</li>
+<li><code>App*</code> Include any values that start with App</li>
+<li><code>(App* &amp;&amp; !App1) || ABC</code> Include the value ABC and any values that start with App except App1</li>
+<li><code>!"Frank Jones"</code> Include any value that is not 'Frank Jones'</li>
+</ul>
+
+<p>Filters are applied to variables by specifying them inside curly brackets directly after the variable name in the source specification. In the following example a filter to exclude App1 is being applied to the applicantId variable:</p>
+
+<pre><code>Addresses[$(applicantId)] = Applicants[$(applicantId){!App1}].Address
+</code></pre>
+
+<h3>Property Value Capture</h3>
+
+<p>By default property capture will assign the properties name to the variable, it is also possible to use the properties value (or some sub-value).</p>
+
+<p>This is done by specifying following the variable with a path specification in brackets.</p>
+
+<p>A path specification consists of a colon followed by the path to the desired property. A colon with no path indicates that the current properties value should be used.</p>
+
+<p>So using the following mapping:</p>
+
+<pre><code>Applicants[$(applicantId)] = Applicants[$(applicantId)(:Id)]
+</code></pre>
+
+<p>With the following source JSON:</p>
+
+<pre><code>{
+    Applicants: {
+        A: {
+            Id: 'App1',
+            Age: 23
+        },
+        B: {
+            Id: 'App2',
+            Age: 27
+        }
+    }
+}
+</code></pre>
+
+<p>Would produce the following target JSON:</p>
+
+<pre><code>{
+    Applicants: {
+        App1: {
+            Id: 'App1',
+            Age: 23
+        },
+        App2: {
+            Id: 'App2',
+            Age: 27
+        }
+    }
+}
+</code></pre>
+
+<p>This approach can also be used with source arrays so using the above mapping, the following source object would produce the same target object as above.</p>
+
+<pre><code>{
+    Applicants: [
+        {
+            Id: 'App1',
+            Age: 23
+        },
+        {
+            Id: 'App2',
+            Age: 27
+        }
+    ]
+}
+</code></pre>
+
+<p>If using value capture and filtering, the value capture is specified first, e.g. <code>Applicants[$(applicantId)(:Id){!App1}]</code>.</p>
+
+<h3>Multi-Capture</h3>
+
+<p>It is possible to capture multiple variables at the same position if required. To do this simply comma separate the variable definitions.</p>
+
+<p>In the following example we are capturing the applicants Id using property name capture and the applicants age using property value capture.</p>
+
+<pre><code>ApplicantsByAge[$(applicantAge)][$(applicantId)] = Applicants[$(applicantId),$(applicantAge)(:Age)].Name
+</code></pre>
+
+<p>Using the following source JSON:</p>
+
+<pre><code>{
+    Applicants: {
+        App1: {
+            Age: 23,
+            Name: "Frank"
+        },
+        App2: {
+            Age: 25,
+            Name: "Joe"
+        },
+        App3: {
+            Age: 23,
+            Name: "Bob"
+        }
+    }
+}
+</code></pre>
+
+<p>Would produce the following target JSON:</p>
+
+<pre><code>{
+    ApplicantsByAge: {
+        23: {
+            App1: "Frank",
+            App3: "Bob"
+        },
+        25: {
+            App2: "Joe"
+        }
+    }
+}
+</code></pre>
+
+<p>When using multi-capture with filters, the filters are still specified and applied per variable, if a property is filtered out on one of the filters then that applies across the board.</p>
+
+<pre><code>ApplicantsByAge[$(applicantAge)][$(applicantId)] = Applicants[$(applicantId){!App1},$(applicantAge)(:Age){!25}].Name
+</code></pre>
+
+<p>Using the above mapping with the previous example source JSON would produce the following output JSON:</p>
+
+<pre><code>{
+    ApplicantsByAge: {
+        23: {
+            App3: "Bob"
+        }
+    }
+}
+</code></pre>
+
+<h3>Advanced Filtering</h3>
+
+<p>Some times we may want to produce a filter that references a value that is not captured directly by the variable. In this case we can prefix the filter values with the path to the value followed by a colon.</p>
+
+<p>For example the following mapping:</p>
+
+<pre><code>Applicants[$(applicantId)] = Applicants[$(applicantId){!Age:25}]
+</code></pre>
+
+<p>Using the following source JSON:</p>
+
+<pre><code>{
+    Applicants: {
+        App1: {
+            Age: 23,
+            Name: "Frank"
+        },
+        App2: {
+            Age: 25,
+            Name: "Joe"
+        }
+    }
+}
+</code></pre>
+
+<p>Would produce the following target JSON.</p>
+
+<pre><code>{
+    Applicants: {
+        App1: {
+            Age: 23,
+            Name: "Frank"
+        }
+    }
+}
+</code></pre>
+
+<h3>Combining Variables for Property Names</h3>
+
+<p>We may need to capture multiple values and combine them to produce the property name in the target JSON. Target property names are actually interpolated strings with variables being replaced so we could have the following specification:</p>
+
+<pre><code>Applicants[$(applicantFirstName)_$(applicantLastName)] = Applicants[$(applicantFirstName)(:FirstName),$(applicantLastName)(:LastName)].Age
+</code></pre>
+
+<p>Using the following source JSON</p>
+
+<pre><code>{
+    Applicants: [
+        {
+            FirstName: "Frank",
+            LastName: "Jones",
+            Age: 25
+        },
+        {
+            FirstName: "Billy",
+            LastName: "Baker",
+            Age: 34
+        }
+    ]
+}
+</code></pre>
+
+<p>Would produce the following target JSON:</p>
+
+<pre><code>{
+    Applicants: {
+        Frank_Jones: 25,
+        Billy_Baker: 34
+    }
+}
+</code></pre>
+
+<h3>Target Property Values</h3>
+
+<p>So far we have seen how to use variables to define target property names, we can also use variables to set target property values.</p>
+
+<p>This is done by defining an assignment inside curly brackets at the most nested level possible with the assignment property being relative to the definition location. In the following example we are assigning the applicantAge variable to the Age property:</p>
+
+<pre><code>Applicants[$(applicantId)]{Age:$(applicantAge)}.Name = ApplicantsByAge[$(applicantAge)][$(applicantId)]
+</code></pre>
+
+<p>This could also be written as follows however this is more complex (hence we always want to specify assignment at the most nested level possible).</p>
+
+<pre><code>Applicants{$(applicantId).Age:$(applicantAge)}[$(applicantId)].Name = ApplicantsByAge[$(applicantAge)][$(applicantId)]
+</code></pre>
+
+<p>Using the following source JSON with the above definition:</p>
+
+<pre><code>{
+    ApplicantsByAge: {
+        23: {
+            App1: "Frank",
+            App3: "Bob"
+        },
+        25: {
+            App2: "Joe"
+        }
+    }
+}
+</code></pre>
+
+<p>Would produce the following target JSON:</p>
+
+<pre><code>{
+    Applicants: {
+        App1: {
+            Age: 23,
+            Name: "Frank"
+        },
+        App2: {
+            Age: 25,
+            Name: "Joe"
+        },
+        App3: {
+            Age: 23,
+            Name: "Bob"
+        }
+    }
+}
+</code></pre>
+
+<h3>Targeting property Values in Arrays</h3>
+
+<p>We can also target property values in arrays so we could have the following mapping definition:</p>
+
+<pre><code>Applicants[]{Age:$(applicantAge),Id:$(applicantId)}.Name = ApplicantsByAge[$(applicantAge)][$(applicantId)]
+</code></pre>
+
+<p><em>Note the use of the empty square brackets denoting an array and the comma separation for the multiple assignments</em></p>
+
+<p>Given the following source JSON:</p>
+
+<pre><code>{
+    ApplicantsByAge: {
+        23: {
+            App1: "Frank",
+            App3: "Bob"
+        },
+        25: {
+            App2: "Joe"
+        }
+    }
+}
+</code></pre>
+
+<p>This would produce the following target JSON:</p>
+
+<pre><code>{
+    Applicants: [
+        {
+            Age: 23,
+            Id: App1,
+            Name: "Frank"
+        },
+        {
+            Age: 23,
+            Id: App3,
+            Name: "Bob"
+        },
+        {
+            Age: 25,
+            Id: App2,
+            Name: "Joe"
+        }           
+    ]
+}
+</code></pre>
+
+<h2>Partials</h2>
+
+<p>If our mapping starts getting complicated and has repetitive parts we may want to define partial mappings that we can reuse. This is done using partials. A partial is defined using double angle brackets and follows the same naming rules as variables. Partials can be used in either the source or target sides of the definition and can include variable names.</p>
+
+<p>Assignment to a partial is done using the colon operator, the partial can then be used in place of the full definition.</p>
+
+<p>The following mapping declares two partials and then uses them in multiple individual mapping definitions.</p>
+
+<pre><code>&lt;&lt;sourceApplicant&gt;&gt;: Application.Main.Applicants[$(applicantId)].Details
+&lt;&lt;targetApplicant&gt;&gt;: Applicants[$(applicantId)]
+
+&lt;&lt;targetApplicant&gt;&gt;.Name = &lt;&lt;sourceApplicant&gt;&gt;.Name
+&lt;&lt;targetApplicant&gt;&gt;.PostCode = &lt;&lt;sourceApplicant&gt;&gt;.Address.PostCode
+&lt;&lt;targetApplicant&gt;&gt;.Title = &lt;&lt;sourceApplicant&gt;&gt;.Title.Name
+</code></pre>
+
+<h2>Under the Hood</h2>
+
+<p>When actually applying a mapping the following steps are taken:</p>
+
+<ul>
+<li>Apply the source side of the mapping to the source JSON
+
+<ul>
+<li>This will produce a set of individual values, each value with an associated set of variable values</li>
+<li>In the case of <code>Applicants[$(applicantId)].Name</code> this would give a set of <code>Name</code> values, each with an associated value for <code>applicantId</code></li>
+</ul></li>
+<li>Apply the target side of the mapping to each value in the set of found values to produce the output JSON for that specific value, substituting the associated variable values as appropriate</li>
+<li>Combine all the output results to produce the final result</li>
+</ul>
+
+<h2>Mapping to an Existing Object</h2>
+
+<p>So far we have only considered mapping from a source object to a new (empty) target object. If we want to be able to map new data into an existing object there are a few more considerations.</p>
+
+<p>The most basic approach would be to map into an empty object and then simply union the existing and new objects, taking the values from the new object where there are conflicts. This is often not desired though, for instance we may not want to map some properties that don't already exist in the target object or we may have a situation where multiple objects exist in the target that we want to map the same source value to.</p>
+
+<p>The set of considerations we will handle are:</p>
+
+<ul>
+<li>Conditionally mapping based on existence of the target property
+
+<ul>
+<li>Either map if existing or map if not existing</li>
+<li>Also supporting this based on existence of parent objects (e.g. map the name property if the applicant that it belongs to exists regardless of whether the name property exists on that applicant)</li>
+</ul></li>
+</ul>
+
+<p>For now we will not support mapping a source value to multiple matching target values, this will simply cause an error in the mapping.</p>
+
+<h3>Conditional Mapping</h3>
+
+<p>Given the above requirements for conditional mapping we need a way to specify one of the following three requirements for a target path segment:</p>
+
+<ul>
+<li>Always map (whether it exists or not)</li>
+<li>Map only if the element exists</li>
+<li>Map only if the element does not exist</li>
+</ul>
+
+<p>Always map is the default behavior so the syntax used above will all use the 'always map' behavior. i.e. The following would always map <code>Name</code> regardless of whether that property exists in the target JSON.</p>
+
+<pre><code>Applicants[$(applicantId)].Name = Applicants[$(applicantId)(:Id)].Name
+</code></pre>
+
+<p>The other two behaviors require some additional syntax to apply a modifier to a path segment specifying the behavior. For this the modifier will be applied at the end of the segment it applies to (if the segment is quoted it is applied outside the quotes). The modifiers are as follows:</p>
+
+<ul>
+<li><code>?</code> Map if the element does exist</li>
+<li><code>!</code> Map if the element does <em>not</em> exist</li>
+</ul>
+
+<p>In the following example the name will be mapped only if the applicant with the specific Id exists in the target JSON (but we don't care whether the Name itself exists on the applicant).</p>
+
+<pre><code>Applicants[$(applicantId)]?.Name = Applicants[$(applicantId)(:Id)].Name
+</code></pre>
+
+<p>We can also combine these operators in a single mapping if we want. In the following example the Name will only be mapped if the applicant exists in the target JSON and does not already have a Name set.</p>
+
+<pre><code>Applicants[$(applicantId)]?.Name! = Applicants[$(applicantId)(:Id)].Name
+</code></pre>
+
+<p><em>Whilst any combination of operators like this is valid the only useful combination is as shown above with a <code>?</code> element and then further along an <code>!</code> element. If we have <code>!...?</code> then no mapping will ever happen since the requirements represent an impossibility. If we have multiple of the same operator then we only actually need the last one.</em></p>
+
+<h2>Restricting by Schema</h2>
+
+<p>For all the above mapping we could define a schema for the source or target objects (out of scope of this document but we can think about TypeScript interface definitions for POJO objects). We could then use those schema(s) to restrict what gets copied during mapping by ignoring anything that does not match them.</p>
+
+<p>Imagine we had the following target schema definition (using TypeScript syntax):</p>
+
+<pre><code>interface ITarget {
+    Applicants: {
+        [id: string]: {
+            Age: number
+        }
+    }
+}
+</code></pre>
+
+<p>If we were to use that when applying the following mapping:</p>
+
+<pre><code>Applicants[$(applicantId)] = Applicants[$(applicantId)(:Id)]
+</code></pre>
+
+<p>With the following source JSON:</p>
+
+<pre><code>{
+    Applicants: {
+        A: {
+            Id: 'App1',
+            Age: 23
+        },
+        B: {
+            Id: 'App2',
+            Age: 27
+        }
+    }
+}
+</code></pre>
+
+<p>It would produce the following target JSON (note that the Id properties have been stripped out leaving only the Age properties in line with the target definition):</p>
+
+<pre><code>{
+    Applicants: {
+        App1: {
+            Age: 23
+        },
+        App2: {
+            Age: 27
+        }
+    }
+}
+</code></pre>
+
+<h2>Syntax Notes</h2>
+
+<h3>Comments</h3>
+
+<p>Comments can be specified on their own lines prefixed with <code>//</code>, i.e. a comment must be the only thing on the line.</p>
+
+<p>Comments can however be indented (i.e. whitespace can precede a comment).</p>
+
+<h3>Blank Lines</h3>
+
+<p>Blank lines are allowed and simply ignored.</p>
+
+<h3>Splitting Lines</h3>
+
+<p>In all the examples we show each mapping definition on a single line. They can be split onto multiple lines by indenting. Any line that starts with some whitespace (and is not a comment) is considered a continuation of the previous line.</p>
+
+<p>So the following:</p>
+
+<pre><code>Applicant.Name = Applicant.Name
+Applicant.PostCode = Applicant.Address.PostCode
+</code></pre>
+
+<p>Could be written as follows and mean the same thing:</p>
+
+<pre><code>// Map the applicants name
+Applicant.Name = Applicant.Name
+
+// Map the postcode directly onto the applicant
+Applicant.PostCode
+    = Applicant
+        .Address
+        // This is a comment about the postcode field
+        .PostCode
+</code></pre>
+			</div>
+<div class="nav-section">
+	<div class="nav-sub-section">
+		<h2>About</h2>
+		<p>
+			I am a C# developer working in the finance sector in London, England. This is my personal site where I write about things that interest me (when I have the time!).
+		</p>
+		<p>
+			Here you will find personal projects along with blog articles about programming topics that interest me.
+		</p>
+	</div>
+	<div class="nav-sub-section">
+		<p>
+			<a href="/rss.xml" class="feed-link">Subscribe</a>
+			<a href="https://www.linkedin.com/in/gareth-werren" class="linked-in-link">My Profile</a>
+			<a href="/Static/cv.pdf" class="cv-link">My CV</a>
+		</p>
+	</div>
+	<div class="nav-sub-section">
+		<ul class="nav-project-list">
+				<li>
+					<div>
+						<a href="/Projects/jsonDataMapper" class="list-link"><h2>JSON Data Mapper</h2></a>
+						<p class="nav-project-description">A C# project for mapping JSON data from a source to a target JSON payload using a custom mapping definition language</p>
+					</div>
+				</li>
+				<li>
+					<div>
+						<a href="/Projects/multiCaret" class="list-link"><h2>Multi-Caret</h2></a>
+						<p class="nav-project-description">A Visual Studio plugin for multi-point editing</p>
+					</div>
+				</li>
+		</ul>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Tags</h2>
+		<div class="nav-tags">
+<a href="/Blog/Tags/csharp" class="tag">C#</a><a href="/Blog/Tags/cast" class="tag">Cast</a><a href="/Blog/Tags/exceptions" class="tag">Exceptions</a><a href="/Blog/Tags/hangfire" class="tag">HangFire</a><a href="/Blog/Tags/linq" class="tag">Linq</a><a href="/Blog/Tags/mercurial" class="tag">Mercurial</a><a href="/Blog/Tags/multicaret" class="tag">Multi-Caret</a><a href="/Blog/Tags/mvvm" class="tag">MVVM</a><a href="/Blog/Tags/servicebus" class="tag">Service Bus</a><a href="/Blog/Tags/visualstudio" class="tag">Visual Studio</a><a href="/Blog/Tags/wpf" class="tag">WPF</a>		</div>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Latest Blog Posts</h2>
+		<ul class="no-bullets">
+				<li><a href="/Blog/Posts/hangfireAsAServiceBus" class="list-link">HangFire as a Service Bus</a></li>
+				<li><a href="/Blog/Posts/mercurialCsvLog" class="list-link">Mercurial CSV Log</a></li>
+				<li><a href="/Blog/Posts/mvvmCodeBehind" class="list-link">MVVM and Code Behind</a></li>
+				<li><a href="/Blog/Posts/introducingMultiCaret" class="list-link">Introducing Multi-Caret</a></li>
+				<li><a href="/Blog/Posts/basicCastingInCSharp" class="list-link">Basic Casting in C#</a></li>
+				<li><a href="/Blog/Posts/reportingExceptions" class="list-link">Reporting Exceptions</a></li>
+				<li><a href="/Blog/Posts/isLinqXOrDefaultEvil" class="list-link">Is Linq X-OrDefault Evil?</a></li>
+			<li class="spacing-item"></li>
+			<li><a href="/AllPosts">All Posts...</a></li>
+		</ul>
+	</div>
+</div>		</div>
+	</body>
+</html>
