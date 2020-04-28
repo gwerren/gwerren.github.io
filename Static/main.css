@@ -204,6 +204,10 @@ a.tag {
 	display: block;
 }
 
+.post-title-section {
+	margin-bottom: 1em;
+}
+
 @media only screen and (min-width: 768px) {
 	.header-title h1 {
 		font-size: 5em;
@@ -241,6 +245,7 @@ a.tag {
 	.post-title-section {
 		flex: 1;
 		display: flex;
+		margin-bottom: 0em;
 	}
 
 	.post-title {
