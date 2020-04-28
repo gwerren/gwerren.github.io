@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width">
+		<title>Simple C# Tokenizer Using Regex</title>
+		<link rel="stylesheet" type="text/css" href="/Static/main.css">
+	</head>
+	<body>
+<div class="header">
+	<div class="header-title">
+		<a href="/" class="title-link">
+			<h1>gwerren.com</h1>
+			<h2>Programming notes and tools...</h2>
+		</a>
+	</div>
+</div>		<div class="main-container">
+			<div class="main-section">
+				<div class="post-title-section">
+					<h1 class="post-title">Simple C# Tokenizer Using Regex</h1>
+					<div class="post-tags">
+<a href="/Blog/Tags/jsondatamapper" class="tag">JSON Data Mapper</a><a href="/Blog/Tags/regex" class="tag">Regex</a><a href="/Blog/Tags/csharp" class="tag">C#</a><a href="/Blog/Tags/textparsing" class="tag">Text Parsing</a>					</div>
+				</div>
+				<h2>Introduction</h2>
+
+<p>I have started building a <a href="/Projects/jsonDataMapper/">JSON data mapper</a> for which I have first <a href="/Projects/jsonDataMapper/spec">defined a simple mapping language</a>.</p>
+
+<p>In order to build the data mapper I need to be able to parse mapping scripts written in the mapping language, the first step of which is to take the mapping scripts and tokenize them. I considered using <a href="https://www.antlr.org/">Antlr</a> and may well switch if things get much more complicated however I thought I would have a go at building what I needed in C# first.</p>
+
+<h2>My Tokenizer Requirements</h2>
+
+<p>Looking at my language specification I realized that there were only a few complex tokens, (such as a quoted item - a series of characters surrounded by double quotes with any contained double quotes being escaped by a second double quote), which needed to be carefully extracted. After that the tokens were all simple (e.g. a colon symbol) with anything remaining at the end being string segments.</p>
+
+<p>I decided to see if it would be possible to extract one token type at a time using Regex matching. Using this approach I would need to ensure extraction was done in the correct order (e.g. extract quoted strings early so that subsequent extractions do not need to worry about potentially being within a quoted string).</p>
+
+<p>To start with I came up with a set of tokens I wanted to be able to extract and the order they should be extracted:</p>
+
+<ul>
+<li>Comment</li>
+<li>QuotedItem</li>
+<li>Partial</li>
+<li>Variable</li>
+<li>LineContinuation</li>
+<li>NewLine</li>
+<li>Whitespace</li>
+<li>Equals</li>
+<li>Dot</li>
+<li>OpenSquareBracket</li>
+<li>CloseSquareBracket</li>
+<li>OpenCurlyBracket</li>
+<li>CloseCurlyBracket</li>
+<li>Comma</li>
+<li>QuestionMark</li>
+<li>ExclaimationMark</li>
+<li>OpenRoundBracket</li>
+<li>CloseRoundBracket</li>
+<li>Colon</li>
+<li>Item</li>
+<li>String - Anything remaining is a String</li>
+</ul>
+
+<p>The most difficult are the first two since something looking like a comment could appear in a quoted string and quotes could appear within a comment. Luckily the C# Regex implementation supports look-back and with a bit of work I was able to define a Regex to match a comment that did not start in the middle of a comment.</p>
+
+<h2>The Tokenizer</h2>
+
+<p>Given the above requirements I came up with the following generic tokenizer implementation which iteratively applies the token Regex's to extract the tokens and returns the resultant tokens. The implementation is generic on the type that holds the token type (<code>TType</code>). This allows us to use any type we want, I defined an <code>enum</code> for my usage (see below) however you could just as easily use string or some othe rtype if you prefer.</p>
+
+<pre><code>public readonly struct Token&lt;TType&gt;
+{
+    public Token(TType type, string value)
+    {
+        this.Type = type;
+        this.Value = value;
+    }
+
+    public TType Type { get; }
+
+    public string Value { get; }
+}
+
+public class Tokenizer&lt;TType&gt;
+{
+    private readonly IList&lt;TokenType&gt; tokenTypes = new List&lt;TokenType&gt;();
+    private readonly TType defaultTokenType;
+
+    public Tokenizer(TType defaultTokenType) =&gt; this.defaultTokenType = defaultTokenType;
+
+    public Tokenizer&lt;TType&gt; Token(TType type, params string[] matchingRegexs)
+    {
+        foreach (var matchingRegex in matchingRegexs)
+            this.tokenTypes.Add(new TokenType(type, matchingRegex));
+
+        return this;
+    }
+
+    public IList&lt;Token&lt;TType&gt;&gt; Tokenize(string input)
+    {
+        IEnumerable&lt;Token&lt;TType&gt;&gt; tokens = new[] { new Token&lt;TType&gt;(this.defaultTokenType, input) };
+        foreach (var type in this.tokenTypes)
+            tokens = ExtractTokenType(tokens, type);
+
+        return tokens.ToList();
+    }
+
+    private IEnumerable&lt;Token&lt;TType&gt;&gt; ExtractTokenType(
+        IEnumerable&lt;Token&lt;TType&gt;&gt; tokens,
+        TokenType toExtract)
+    {
+        var tokenType = toExtract.Type;
+        var tokenMatcher = new Regex(toExtract.MatchingRegex, RegexOptions.Multiline);
+        foreach (var token in tokens)
+        {
+            if (!token.Type.Equals(this.defaultTokenType))
+            {
+                yield return token;
+                continue;
+            }
+
+            var matches = tokenMatcher.Matches(token.Value);
+            if (matches.Count == 0)
+            {
+                yield return token;
+                continue;
+            }
+
+            var currentIndex = 0;
+            foreach (Match match in matches)
+            {
+                if (currentIndex &lt; match.Index)
+                {
+                    yield return new Token&lt;TType&gt;(
+                        this.defaultTokenType,
+                        token.Value.Substring(currentIndex, match.Index - currentIndex));
+                }
+
+                yield return new Token&lt;TType&gt;(tokenType, match.Value);
+                currentIndex = match.Index + match.Length;
+            }
+
+            if (currentIndex &lt; token.Value.Length)
+            {
+                yield return new Token&lt;TType&gt;(
+                    this.defaultTokenType,
+                    token.Value.Substring(currentIndex, token.Value.Length - currentIndex));
+            }
+        }
+    }
+
+    private readonly struct TokenType
+    {
+        public TokenType(TType type, string matchingRegex)
+        {
+            this.Type = type;
+            this.MatchingRegex = matchingRegex;
+        }
+
+        public TType Type { get; }
+
+        public string MatchingRegex { get; }
+    }
+}
+</code></pre>
+
+<h2>Usage</h2>
+
+<p>Having built the tokenizer I was able to use it to tokenize define a specific tokenizer for my mapping scripts. My definition looks as follows:</p>
+
+<pre><code>var tokenizer = new Tokenizer&lt;TokenType&gt;(TokenType.String)
+    .Token(TokenType.Comment, @"(?&lt;=^([^""\r\n]|""[^""\r\n]*"")*)//[^\r\n]*")
+    .Token(TokenType.QuotedItem, @"""([^""]|""{2})+""")
+    .Token(TokenType.Partial, @"&lt;&lt;[a-zA-Z0-9_-]+&gt;&gt;")
+    .Token(TokenType.Variable, @"\$\([a-zA-Z0-9_-]+\)")
+    .Token(TokenType.LineContinuation, @"[\r\n]+[ \t\r\n]+[ \t]+")
+    .Token(TokenType.NewLine, @"[\r\n]+")
+    .Token(TokenType.Whitespace, @"[ \t]+")
+    .Token(TokenType.Equals, "=")
+    .Token(TokenType.Dot, @"\.")
+    .Token(TokenType.OpenSquareBracket, @"\[")
+    .Token(TokenType.CloseSquareBracket, @"\]")
+    .Token(TokenType.OpenCurlyBracket, "{")
+    .Token(TokenType.CloseCurlyBracket, "}")
+    .Token(TokenType.Comma, ",")
+    .Token(TokenType.QuestionMark, @"\?")
+    .Token(TokenType.ExclaimationMark, @"\!")
+    .Token(TokenType.OpenRoundBracket, @"\(")
+    .Token(TokenType.CloseRoundBracket, @"\)")
+    .Token(TokenType.Colon, ":")
+    .Token(TokenType.Item, @"[a-zA-Z0-9_-]+");
+</code></pre>
+
+<p>And now I can use this to tokenize my scripts as follows:</p>
+
+<pre><code>var tokens = tokenizer.Tokenize(script);
+</code></pre>
+
+<h2>Conclusion</h2>
+
+<p>For this level of script complexity the approach works well for tokenization, however if things get much more complex I would definitely want to look at alternative options.</p>
+			</div>
+<div class="nav-section">
+	<div class="nav-sub-section">
+		<h2>About</h2>
+		<p>
+			I am a C# developer and software architect working in the finance sector in Cambridge, England. This is my personal site where I write about things that interest me (when I have the time!).
+		</p>
+		<p>
+			Here you will find personal projects along with blog articles about programming topics that interest me.
+		</p>
+	</div>
+	<div class="nav-sub-section">
+		<p>
+			<a href="/rss.xml" class="feed-link">Subscribe</a>
+			<a href="https://www.linkedin.com/in/gareth-werren" class="linked-in-link">My Profile</a>
+			<a href="/Static/cv.pdf" class="cv-link">My CV</a>
+		</p>
+	</div>
+	<div class="nav-sub-section">
+		<ul class="nav-project-list">
+				<li>
+					<div>
+						<a href="/Projects/jsonDataMapper" class="nav-project-title-link"><h2>JSON Data Mapper</h2></a>
+						<p class="nav-project-description">A C# project for mapping JSON data from a source to a target JSON payload using a custom mapping definition language</p>
+					</div>
+				</li>
+				<li>
+					<div>
+						<a href="/Projects/multiCaret" class="nav-project-title-link"><h2>Multi-Caret</h2></a>
+						<p class="nav-project-description">A Visual Studio plugin for multi-point editing</p>
+					</div>
+				</li>
+		</ul>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Post Tags</h2>
+		<div class="nav-tags">
+<a href="/Blog/Tags/csharp" class="tag">C#</a><a href="/Blog/Tags/cast" class="tag">Cast</a><a href="/Blog/Tags/exceptions" class="tag">Exceptions</a><a href="/Blog/Tags/hangfire" class="tag">HangFire</a><a href="/Blog/Tags/jsondatamapper" class="tag">JSON Data Mapper</a><a href="/Blog/Tags/linq" class="tag">Linq</a><a href="/Blog/Tags/mercurial" class="tag">Mercurial</a><a href="/Blog/Tags/multicaret" class="tag">Multi-Caret</a><a href="/Blog/Tags/mvvm" class="tag">MVVM</a><a href="/Blog/Tags/regex" class="tag">Regex</a><a href="/Blog/Tags/servicebus" class="tag">Service Bus</a><a href="/Blog/Tags/textparsing" class="tag">Text Parsing</a><a href="/Blog/Tags/visualstudio" class="tag">Visual Studio</a><a href="/Blog/Tags/wpf" class="tag">WPF</a>		</div>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Latest Blog Posts</h2>
+		<ul class="no-bullets">
+				<li><a href="/Blog/Posts/simpleCSharpTokenizerUsingRegex" class="list-link">Simple C# Tokenizer Using Regex</a></li>
+				<li><a href="/Blog/Posts/hangfireAsAServiceBus" class="list-link">HangFire as a Service Bus</a></li>
+				<li><a href="/Blog/Posts/mercurialCsvLog" class="list-link">Mercurial CSV Log</a></li>
+				<li><a href="/Blog/Posts/mvvmCodeBehind" class="list-link">MVVM and Code Behind</a></li>
+				<li><a href="/Blog/Posts/introducingMultiCaret" class="list-link">Introducing Multi-Caret</a></li>
+				<li><a href="/Blog/Posts/basicCastingInCSharp" class="list-link">Basic Casting in C#</a></li>
+				<li><a href="/Blog/Posts/reportingExceptions" class="list-link">Reporting Exceptions</a></li>
+			<li class="spacing-item"></li>
+			<li><a href="/AllPosts">All Posts...</a></li>
+		</ul>
+	</div>
+</div>		</div>
+	</body>
+</html>

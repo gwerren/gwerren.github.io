@@ -6,6 +6,13 @@
 		<description>Software development - mainly C#</description>
 		<atom:link href="http://gwerren.com/rss.xml" rel="self" type="application/rss+xml" />
 			<item>
+				<title>Simple C# Tokenizer Using Regex</title>
+				<link>http://gwerren.com/Blog/Posts/simpleCSharpTokenizerUsingRegex</link>
+				<guid>http://gwerren.com/Blog/Posts/simpleCSharpTokenizerUsingRegex</guid>
+				<pubDate>Tue, 28 Apr 2020 00:00:00 GMT</pubDate>
+				<description>A look at how to build a tokenizer for a simple language in C# using the built in Regex utility.</description>
+			</item>
+			<item>
 				<title>HangFire as a Service Bus</title>
 				<link>http://gwerren.com/Blog/Posts/hangfireAsAServiceBus</link>
 				<guid>http://gwerren.com/Blog/Posts/hangfireAsAServiceBus</guid>
