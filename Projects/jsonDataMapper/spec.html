@@ -488,12 +488,12 @@ Applicant.Address = Applicant.Address.HouseNameNumber
 
 <p>If our mapping starts getting complicated and has repetitive parts we may want to define partial mappings that we can reuse. This is done using partials. A partial is defined using double angle brackets and follows the same naming rules as variables. Partials can be used in either the source or target sides of the definition and can include variable names.</p>
 
-<p>Assignment to a partial is done using the colon operator, the partial can then be used in place of the full definition.</p>
+<p>Assignment to a partial is done using the double colon operator, the partial can then be used in place of the full definition.</p>
 
 <p>The following mapping declares two partials and then uses them in multiple individual mapping definitions.</p>
 
-<pre><code>&lt;&lt;sourceApplicant&gt;&gt;: Application.Main.Applicants[$(applicantId)].Details
-&lt;&lt;targetApplicant&gt;&gt;: Applicants[$(applicantId)]
+<pre><code>&lt;&lt;sourceApplicant&gt;&gt;:: Application.Main.Applicants[$(applicantId)].Details
+&lt;&lt;targetApplicant&gt;&gt;:: Applicants[$(applicantId)]
 
 &lt;&lt;targetApplicant&gt;&gt;.Name = &lt;&lt;sourceApplicant&gt;&gt;.Name
 &lt;&lt;targetApplicant&gt;&gt;.PostCode = &lt;&lt;sourceApplicant&gt;&gt;.Address.PostCode
