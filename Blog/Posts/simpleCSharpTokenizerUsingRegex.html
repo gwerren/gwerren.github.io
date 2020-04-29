@@ -42,6 +42,7 @@
 <li>LineContinuation</li>
 <li>NewLine</li>
 <li>Whitespace</li>
+<li>PartialAssignment</li>
 <li>Equals</li>
 <li>Dot</li>
 <li>OpenSquareBracket</li>
@@ -172,6 +173,7 @@ public class Tokenizer&lt;TType&gt;
     .Token(TokenType.LineContinuation, @"[\r\n]+[ \t\r\n]+[ \t]+")
     .Token(TokenType.NewLine, @"[\r\n]+")
     .Token(TokenType.Whitespace, @"[ \t]+")
+    .Token(TokenType.PartialAssignment, "::")
     .Token(TokenType.Equals, "=")
     .Token(TokenType.Dot, @"\.")
     .Token(TokenType.OpenSquareBracket, @"\[")
