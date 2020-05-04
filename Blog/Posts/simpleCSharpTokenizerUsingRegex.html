@@ -55,8 +55,8 @@
 <li>OpenRoundBracket</li>
 <li>CloseRoundBracket</li>
 <li>Colon</li>
-<li>ItemWithWildCards</li>
 <li>Item</li>
+<li>WildCard</li>
 <li>String - Anything remaining is a String</li>
 </ul>
 
@@ -187,8 +187,8 @@ public class Tokenizer&lt;TType&gt;
     .Token(TokenType.OpenRoundBracket, @"\(")
     .Token(TokenType.CloseRoundBracket, @"\)")
     .Token(TokenType.Colon, ":")
-    .Token(TokenType.ItemWithWildCards, @"[\*a-zA-Z0-9_-]+")
-    .Token(TokenType.Item, @"[a-zA-Z0-9_-]+");
+    .Token(TokenType.Item, "[a-zA-Z0-9_-]+")
+    .Token(TokenType.WildCard, @"\*");
 </code></pre>
 
 <p>And now I can use this to tokenize my scripts as follows:</p>
