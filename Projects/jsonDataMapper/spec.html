@@ -322,7 +322,7 @@ Applicant.Address = Applicant.Address.HouseNameNumber
 
 <p>For example the following mapping:</p>
 
-<pre><code>Applicants[$(applicantId)] = Applicants[$(applicantId){!Age:25}]
+<pre><code>Applicants[$(applicantId)] = Applicants[$(applicantId){Age:!25}]
 </code></pre>
 
 <p>Using the following source JSON:</p>
