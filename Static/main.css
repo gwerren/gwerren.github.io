@@ -208,6 +208,12 @@ a.tag {
 	margin-bottom: 1em;
 }
 
+.post-date {
+	text-align: right;
+	margin: 0;
+	padding: 0;
+}
+
 @media only screen and (min-width: 768px) {
 	.header-title h1 {
 		font-size: 5em;
