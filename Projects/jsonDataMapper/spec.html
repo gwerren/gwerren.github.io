@@ -323,43 +323,6 @@ Applicant.Address = Applicant.Address.HouseNameNumber
 }
 </code></pre>
 
-<h3>Advanced Filtering</h3>
-
-<p>Some times we may want to produce a filter that references a value that is not captured directly by the variable. In this case we can prefix the filter values with the path to the value followed by a colon.</p>
-
-<p>For example the following mapping:</p>
-
-<pre><code>Applicants[$(applicantId)] = Applicants[$(applicantId){Age:!25}]
-</code></pre>
-
-<p>Using the following source JSON:</p>
-
-<pre><code>{
-    Applicants: {
-        App1: {
-            Age: 23,
-            Name: "Frank"
-        },
-        App2: {
-            Age: 25,
-            Name: "Joe"
-        }
-    }
-}
-</code></pre>
-
-<p>Would produce the following target JSON.</p>
-
-<pre><code>{
-    Applicants: {
-        App1: {
-            Age: 23,
-            Name: "Frank"
-        }
-    }
-}
-</code></pre>
-
 <h3>Combining Variables for Property Names</h3>
 
 <p>We may need to capture multiple values and combine them to produce the property name in the target JSON. Target property names are actually interpolated strings with variables being replaced so we could have the following specification:</p>
