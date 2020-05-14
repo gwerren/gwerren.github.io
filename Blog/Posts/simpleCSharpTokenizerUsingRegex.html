@@ -36,6 +36,8 @@
 
 <p>In order to build the data mapper I need to be able to parse mapping scripts written in the mapping language, the first step of which is to take the mapping scripts and tokenize them. I considered using <a href="https://www.antlr.org/">Antlr</a> and may well switch if things get much more complicated however I thought I would have a go at building what I needed in C# first.</p>
 
+<p>The latest code for this tokenizer is available as part of my <a href="https://github.com/gwerren/JSuite">JSuite GitHub project</a>.</p>
+
 <h2>My Tokenizer Requirements</h2>
 
 <p>Looking at my language specification I realized that there were only a few complex tokens, (such as a quoted item - a series of characters surrounded by double quotes with any contained double quotes being escaped by a second double quote), which needed to be carefully extracted. After that the tokens were all simple (e.g. a colon symbol) with anything remaining at the end being string segments.</p>
