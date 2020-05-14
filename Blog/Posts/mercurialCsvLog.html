@@ -24,12 +24,8 @@
 			<div class="main-section">
 				<div class="post-title-section">
 					<h1 class="post-title">Mercurial CSV Log</h1>
-					<div class="post-tags">
-<a href="/Blog/Tags/mercurial" class="tag">Mercurial</a>					</div>
-				</div>
-				<div>
-					<p class="post-date">Mon, 13 May 2019</p>
-				</div>
+					<span>Mon, 13 May 2019</span>
+<a href="/Blog/Tags/mercurial" class="tag">Mercurial</a>				</div>
 				<p>At work recently I needed to produce a list of all commits to a certain folder in our source control system for a given time period for audit purposes. We use Mercurial for source control, develop on Windows and wanted the results in a spreadsheet readable format. This post is to remind myself how to do this next time I need to do it!</p>
 
 <p>To get a list of changes you need to use the <code>hg log</code> feature which you can filter using revsets. For my use case I wanted to filter by a given folder and date range and exclude merges (since merges generally do not include new code and add a lot of noise to the search). To achieve this I used the following command:</p>

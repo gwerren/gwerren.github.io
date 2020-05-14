@@ -208,10 +208,9 @@ a.tag {
 	margin-bottom: 1em;
 }
 
-.post-date {
-	text-align: right;
+
+.post-title {
 	margin: 0;
-	padding: 0;
 }
 
 @media only screen and (min-width: 768px) {
@@ -246,20 +245,5 @@ a.tag {
 
 	.nav-sub-section {
 		border-radius: 5px;
-	}
-
-	.post-title-section {
-		flex: 1;
-		display: flex;
-		margin-bottom: 0em;
-	}
-
-	.post-title {
-		flex: 1;
-	}
-
-	.post-tags {
-		flex: 1;
-		flex: 0 0 auto;
 	}
 }
