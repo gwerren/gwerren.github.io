@@ -6,6 +6,13 @@
 		<description>Software development - mainly C#</description>
 		<atom:link href="http://gwerren.com/rss.xml" rel="self" type="application/rss+xml" />
 			<item>
+				<title>Simple C# Parser</title>
+				<link>http://gwerren.com/Blog/Posts/simpleCSharpParser</link>
+				<guid>http://gwerren.com/Blog/Posts/simpleCSharpParser</guid>
+				<pubDate>Thu, 14 May 2020</pubDate>
+				<description>A look at how to build a parser for a simple language in C# based on a set of language tokens.</description>
+			</item>
+			<item>
 				<title>Simple C# Tokenizer Using Regex</title>
 				<link>http://gwerren.com/Blog/Posts/simpleCSharpTokenizerUsingRegex</link>
 				<guid>http://gwerren.com/Blog/Posts/simpleCSharpTokenizerUsingRegex</guid>

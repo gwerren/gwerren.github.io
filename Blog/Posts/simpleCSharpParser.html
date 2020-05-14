@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width">
+		<title>Simple C# Parser</title>
+		<link rel="stylesheet" type="text/css" href="/Static/main.css">
+		<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+		<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+		<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+		<link rel="manifest" href="/site.webmanifest">
+		<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+		<meta name="msapplication-TileColor" content="#ffc40d">
+		<meta name="theme-color" content="#ffffff">		
+	</head>
+	<body>
+<div class="header">
+	<div class="header-title">
+		<a href="/" class="title-link">
+			<h1>gwerren.com</h1>
+			<h2>Programming notes and tools...</h2>
+		</a>
+	</div>
+</div>		<div class="main-container">
+			<div class="main-section">
+				<div class="post-title-section">
+					<h1 class="post-title">Simple C# Parser</h1>
+					<span>Thu, 14 May 2020</span>
+<a href="/Blog/Tags/jsondatamapper" class="tag">JSON Data Mapper</a><a href="/Blog/Tags/csharp" class="tag">C#</a><a href="/Blog/Tags/textparsing" class="tag">Text Parsing</a>				</div>
+					<div>
+						<h2>Posts in This Series</h2>
+						<ol class="series-links">
+									<li><a href="/Blog/Posts/simpleCSharpTokenizerUsingRegex">Simple C# Tokenizer Using Regex</a></li>
+									<li><span>Simple C# Parser</span></li>
+						</ol>
+					</div>
+				<h2>Introduction</h2>
+
+<p>I have started building a <a href="/Projects/jsonDataMapper/">JSON data mapper</a> for which I have first <a href="/Projects/jsonDataMapper/spec">defined a simple mapping language</a>.</p>
+
+<p>In order to build the data mapper I need to be able to parse mapping scripts written in the mapping language, the second step of which is to take the script tokens and parse them into an AST. The tokenizing step is covered in a <a href="simpleCSharpTokenizerUsingRegex">previous post</a>.</p>
+
+<p>The latest code for this parser is available as part of my <a href="https://github.com/gwerren/JSuite">JSuite GitHub project</a> with the code file currently located <a href="https://github.com/gwerren/JSuite/blob/master/JSuite.Mapping.Parser/Parsing/Generic/Parser.cs">here</a>.</p>
+
+<h2>My Parser Requirements</h2>
+
+<ul>
+<li>I want the parser to be configurable, allowing me to define parser rules based on the token types I defined previously.</li>
+<li>The configuration should be easy to modify if I need to add or change a feature of the language definition.</li>
+<li>The output of the parser should be a concise, well structured tree that
+
+<ul>
+<li>Terminates in the input tokens at the leaf nodes.</li>
+<li>Does not contain unnecessary nodes (e.g. if brackets in the language are implied by the resultant tree structure they do not not need to be included in the tree).</li>
+<li>Does not contain unnecessary structure (e.g. if, as an artifact of the rule definitions, additional nesting is added that does not aid understanding then that should be able to be removed.)</li>
+</ul></li>
+</ul>
+
+<h2>Pre Parsing</h2>
+
+<p>There are a few artifacts of the language definition that make it hard to define simple rules based on the series of tokens obtained, for instance comments are allowed. As a result I decided that it would make sense to have an intermediate set of steps between the tokenization and parsing which would strip out surplus tokens, apply some basic clean-up and split the tokens into individual mapping statements. The parser will then operate on the individual mapping statements making it far simpler to define.</p>
+
+<p>The set of pre-parsing tasks that are performed are as follows:</p>
+
+<ul>
+<li>Applying Modifications
+
+<ul>
+<li>This is a simple step whose only task is to update the token values for quoted item tokens to remove the quoting. This means that any later use of the tokens value does not need to worry about de-quoting the value and can simply use it in the same way an unquoted value would be used.</li>
+</ul></li>
+<li>Splitting into Statements
+
+<ul>
+<li>This step splits the tokens into individual statements, removing comments, line continuations and empty lines as it goes. After this a statement can either be a mapping definition or a partial definition.</li>
+</ul></li>
+<li>Apply Partials
+
+<ul>
+<li>This step finds the partial definitions and replaces their usages with the definition tokens. Doing this here means that the parser does not need to worry about partial definitions and can simply treat each statement as a single mapping definition with no complications.</li>
+</ul></li>
+</ul>
+
+<h2>The Parser</h2>
+
+<p>A parser is basically a pattern matcher across a series of tokens. As a result a good way to configure a parser is to define a set of rules which each match a certain series of tokens or other rules with all matching eventually getting to tokens. The parser can then apply these rules to the input tokens to find the rule and token structure that matches the input tokens and return that structure.</p>
+
+<h3>Configuration Structure</h3>
+
+<p>The parse configuration structure I decided on is as follows:</p>
+
+<ul>
+<li>A set of named rules are defined.</li>
+<li>Each rule consists of one or more rule options where, for a rule to be matched one of the options must be matched.
+
+<ul>
+<li>Rule options are tested in the order they were defined with the first to be matched being the one to be used.</li>
+</ul></li>
+<li>Each rule option consists of a series of elements to match where an element:
+
+<ul>
+<li>Can be a token or another rule.</li>
+<li>Has an occurrence expectation (zero or more, once, at most once, at least once)</li>
+</ul></li>
+</ul>
+
+<p>The parser is also told which rule is the top level rule, this is the rule that it should start with when asked to parse a new series of tokens.</p>
+
+<h3>Parsing Process</h3>
+
+<p>Once configured the parser can parse a series of tokens as follows:</p>
+
+<ul>
+<li>Starting with the top level rule
+
+<ul>
+<li>Loop through the rule options, trying to apply each one until one is found that matches</li>
+<li>Within each rule option loop through the elements, attempting to match each element in accordance with it's occurrence expectation. If an element is found that cannot be matched correctly then the option fails.</li>
+</ul></li>
+<li>If a rule option is found to match at the top level it will be checked to ensure it matches all the provided tokens, if it does not then parsing fails.</li>
+<li>If no matching rule option was found for the top level rule then parsing fails.</li>
+</ul>
+
+<h3>Additional Tracking</h3>
+
+<p>The parser also tracks what the furthest matched token has been. This information can be used along with positional information I added to the tokens to report useful parsing errors to users. The idea being that, if a match is not found then we can report "unexpected token X at location Y" style error messages giving the user a lot of contextual information to start investigating the problem.</p>
+
+<h3>Ensuring Output is Concise and Well Structured</h3>
+
+<p>Imagine you have a very simple language allowing you to define addition of multiple numbers which has tokens <code>Number</code> and <code>Add</code>. You could define the following rules for parsing this language:</p>
+
+<ul>
+<li>Sum
+
+<ul>
+<li>First Number</li>
+<li>Then SubsequentSum AtLeastOnce</li>
+</ul></li>
+<li>SubsequentSum
+
+<ul>
+<li>First Add</li>
+<li>Then Number</li>
+</ul></li>
+</ul>
+
+<p>If we applied this to the sum <code>1+2+3</code> we would get the following tree:</p>
+
+<pre><code>Sum:
+    Number: 1
+    SubsequentSum:
+        Add: +
+        Number: 2
+    SubsequentSum:
+        Add: +
+        Number: 3
+</code></pre>
+
+<p>This is not as concise as it could be nor is it as well structured as it could be. An ideal result would be something like the following where we have removed the SubsequentSum nesting and the Add tokens since they do not add any useful information:</p>
+
+<pre><code>Sum:
+    Number: 1
+    Number: 2
+    Number: 3
+</code></pre>
+
+<p>To achieve this there are two additional concepts that can be applied to a rule element:</p>
+
+<ul>
+<li>Exclude
+
+<ul>
+<li>This can be applied to token elements (such as <code>Add</code>) and will cause that token to be matched but not included in the resultant tree.</li>
+</ul></li>
+<li>Hoist
+
+<ul>
+<li>This can be applied to rule elements (such as <code>SubsequentSum</code>) and will cause the element to be replaced by it's content causing the content to be hoisted up a level.</li>
+</ul></li>
+</ul>
+
+<p>By updating our rule definitions using these two concepts we can now achieve our desired output tree structure:</p>
+
+<ul>
+<li>Sum
+
+<ul>
+<li>First Number</li>
+<li>Then SubsequentSum <strong><em>Hoist</em></strong> AtLeastOnce</li>
+</ul></li>
+<li>SubsequentSum
+
+<ul>
+<li>First Add <strong><em>Exclude</em></strong></li>
+<li>Then Number</li>
+</ul></li>
+</ul>
+
+<h3>Self Referencing Rules</h3>
+
+<p>As rules get more complicated we may want to be able to include circular references.</p>
+
+<p>A good example of this is bracketed sub-expressions in sums where either a number of a bracketed sum are interchangeable. Here you may want to define Sum as <code>Value SubsequentSum</code>, define SubsequentSum as <code>Add Value</code> and define Value as <code>Number or (Sum)</code>. As you can see Sum references Value which in turn references Sum.</p>
+
+<p>This is perfectly valid however it does mean we could end up in an infinite loop if we are not careful. The way to avoid these loops is to ensure that the self referencing is never the first element to be matched. In our example we need an opening bracket before we can try to match a Sum within a Sum meaning that we will never hit an infinite loop.</p>
+
+<p>Some parsers allow head recursion definitions which does make the definitions slightly simpler (in our example we could get rid of the <code>SubsequentSum</code> rule and define <code>Sum</code> as <code>Number or Sum + Number</code>). This however makes the parser logic a little more complicated so it is not supported here.</p>
+
+<h2>Usage</h2>
+
+<p>The parser defines a fluent API for configuring and is defined as generic on the type used to represent the different rules. Using this the above example can be defined as follows (assuming that both the token types and rule types are defined by string values - I would generally recommend defining enums for stronger typing here):</p>
+
+<pre><code>var parser = new Parser&lt;string, string&gt;()
+    .Rule(
+        "Sum",
+        o =&gt; o
+            .WithT("Number").Once()
+            .ThenR("SubsequentSum").Hoist().AtLeastOnce())
+    .Rule(
+        "SubsequentSum",
+        o =&gt; o
+            .WithT("Add").Exclude().Once()
+            .ThenT("Number").Once())
+    .WithRoot("Sum");
+</code></pre>
+
+<h2>Conclusion</h2>
+
+<p>The parser itself is currently less than 500 lines of code and supports meets all my requirements as well as being able to report nicely on parsing errors. It is easily configurable sing a fluent API which makes the rule definitions easy to read and understand.</p>
+			</div>
+<div class="nav-section">
+	<div class="nav-sub-section">
+		<h2>About</h2>
+		<p>
+			I am a C# developer and software architect working in the finance sector in Cambridge, England. This is my personal site where I write about things that interest me (when I have the time!).
+		</p>
+		<p>
+			Here you will find personal projects along with blog articles about programming topics that interest me.
+		</p>
+	</div>
+	<div class="nav-sub-section">
+		<p>
+			<a href="/rss.xml" class="feed-link">Subscribe</a>
+			<a href="https://www.linkedin.com/in/gareth-werren" class="linked-in-link">My Profile</a>
+			<a href="/Static/cv.pdf" class="cv-link">My CV</a>
+		</p>
+	</div>
+	<div class="nav-sub-section">
+		<ul class="nav-project-list">
+				<li>
+					<div>
+						<a href="/Projects/jsonDataMapper" class="nav-project-title-link"><h2>JSON Data Mapper</h2></a>
+						<p class="nav-project-description">A C# project for mapping JSON data from a source to a target JSON payload using a custom mapping definition language</p>
+					</div>
+				</li>
+				<li>
+					<div>
+						<a href="/Projects/multiCaret" class="nav-project-title-link"><h2>Multi-Caret</h2></a>
+						<p class="nav-project-description">A Visual Studio plugin for multi-point editing</p>
+					</div>
+				</li>
+		</ul>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Post Tags</h2>
+		<div class="nav-tags">
+<a href="/Blog/Tags/csharp" class="tag">C#</a><a href="/Blog/Tags/cast" class="tag">Cast</a><a href="/Blog/Tags/exceptions" class="tag">Exceptions</a><a href="/Blog/Tags/hangfire" class="tag">HangFire</a><a href="/Blog/Tags/jsondatamapper" class="tag">JSON Data Mapper</a><a href="/Blog/Tags/linq" class="tag">Linq</a><a href="/Blog/Tags/mercurial" class="tag">Mercurial</a><a href="/Blog/Tags/multicaret" class="tag">Multi-Caret</a><a href="/Blog/Tags/mvvm" class="tag">MVVM</a><a href="/Blog/Tags/regex" class="tag">Regex</a><a href="/Blog/Tags/servicebus" class="tag">Service Bus</a><a href="/Blog/Tags/textparsing" class="tag">Text Parsing</a><a href="/Blog/Tags/visualstudio" class="tag">Visual Studio</a><a href="/Blog/Tags/wpf" class="tag">WPF</a>		</div>
+	</div>
+	<div class="nav-sub-section">
+		<h2>Latest Blog Posts</h2>
+		<ul class="no-bullets">
+				<li><a href="/Blog/Posts/simpleCSharpParser" class="list-link">Simple C# Parser</a></li>
+				<li><a href="/Blog/Posts/simpleCSharpTokenizerUsingRegex" class="list-link">Simple C# Tokenizer Using Regex</a></li>
+				<li><a href="/Blog/Posts/hangfireAsAServiceBus" class="list-link">HangFire as a Service Bus</a></li>
+				<li><a href="/Blog/Posts/mercurialCsvLog" class="list-link">Mercurial CSV Log</a></li>
+				<li><a href="/Blog/Posts/mvvmCodeBehind" class="list-link">MVVM and Code Behind</a></li>
+				<li><a href="/Blog/Posts/introducingMultiCaret" class="list-link">Introducing Multi-Caret</a></li>
+				<li><a href="/Blog/Posts/basicCastingInCSharp" class="list-link">Basic Casting in C#</a></li>
+			<li class="spacing-item"></li>
+			<li><a href="/AllPosts">All Posts...</a></li>
+		</ul>
+	</div>
+</div>		</div>
+	</body>
+</html>

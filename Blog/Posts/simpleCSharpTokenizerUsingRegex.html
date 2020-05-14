@@ -26,13 +26,20 @@
 					<h1 class="post-title">Simple C# Tokenizer Using Regex</h1>
 					<span>Tue, 28 Apr 2020</span>
 <a href="/Blog/Tags/jsondatamapper" class="tag">JSON Data Mapper</a><a href="/Blog/Tags/regex" class="tag">Regex</a><a href="/Blog/Tags/csharp" class="tag">C#</a><a href="/Blog/Tags/textparsing" class="tag">Text Parsing</a>				</div>
+					<div>
+						<h2>Posts in This Series</h2>
+						<ol class="series-links">
+									<li><span>Simple C# Tokenizer Using Regex</span></li>
+									<li><a href="/Blog/Posts/simpleCSharpParser">Simple C# Parser</a></li>
+						</ol>
+					</div>
 				<h2>Introduction</h2>
 
 <p>I have started building a <a href="/Projects/jsonDataMapper/">JSON data mapper</a> for which I have first <a href="/Projects/jsonDataMapper/spec">defined a simple mapping language</a>.</p>
 
 <p>In order to build the data mapper I need to be able to parse mapping scripts written in the mapping language, the first step of which is to take the mapping scripts and tokenize them. I considered using <a href="https://www.antlr.org/">Antlr</a> and may well switch if things get much more complicated however I thought I would have a go at building what I needed in C# first.</p>
 
-<p>The latest code for this tokenizer is available as part of my <a href="https://github.com/gwerren/JSuite">JSuite GitHub project</a>.</p>
+<p>The latest code for this tokenizer is available as part of my <a href="https://github.com/gwerren/JSuite">JSuite GitHub project</a> with the code file currently located <a href="https://github.com/gwerren/JSuite/blob/master/JSuite.Mapping.Parser/Tokenizing/Generic/Tokenizer.cs">here</a>.</p>
 
 <h2>My Tokenizer Requirements</h2>
 
@@ -249,13 +256,13 @@ public class Tokenizer&lt;TType&gt;
 	<div class="nav-sub-section">
 		<h2>Latest Blog Posts</h2>
 		<ul class="no-bullets">
+				<li><a href="/Blog/Posts/simpleCSharpParser" class="list-link">Simple C# Parser</a></li>
 				<li><a href="/Blog/Posts/simpleCSharpTokenizerUsingRegex" class="list-link">Simple C# Tokenizer Using Regex</a></li>
 				<li><a href="/Blog/Posts/hangfireAsAServiceBus" class="list-link">HangFire as a Service Bus</a></li>
 				<li><a href="/Blog/Posts/mercurialCsvLog" class="list-link">Mercurial CSV Log</a></li>
 				<li><a href="/Blog/Posts/mvvmCodeBehind" class="list-link">MVVM and Code Behind</a></li>
 				<li><a href="/Blog/Posts/introducingMultiCaret" class="list-link">Introducing Multi-Caret</a></li>
 				<li><a href="/Blog/Posts/basicCastingInCSharp" class="list-link">Basic Casting in C#</a></li>
-				<li><a href="/Blog/Posts/reportingExceptions" class="list-link">Reporting Exceptions</a></li>
 			<li class="spacing-item"></li>
 			<li><a href="/AllPosts">All Posts...</a></li>
 		</ul>
