@@ -406,7 +406,7 @@ Applicant.Address = Applicant.Address.HouseNameNumber
 }
 </code></pre>
 
-<h3>Targeting property Values in Arrays</h3>
+<h3>Targeting Property Values in Arrays</h3>
 
 <p>We can also target property values in arrays so we could have the following mapping definition:</p>
 
@@ -452,6 +452,19 @@ Applicant.Address = Applicant.Address.HouseNameNumber
     ]
 }
 </code></pre>
+
+<h3>More on Target Arrays</h3>
+
+<p>Any node in the target can be declared as an array, this is done as above by using the open-close square brackets (i.e. <code>[]</code>). The open-close square brackets should come immediately after the node name definition before any modifiers (e.g. before any target property setters).</p>
+
+<p>The array declaration can be used on a plain node name or on an indexed node, e.g. both the following are valid:</p>
+
+<pre><code>Names[] = Applicants[$(applicantId)].Name
+
+ChildNames.[$(applicantId)][] = Applicants[$(applicantId)].Children[$(childId)].Name
+</code></pre>
+
+<p>Each matching source element will be added to the target array as a new element. This is true even if mapping onto an existing target (see below for more details), no attempt is made to match existing array elements.</p>
 
 <h2>Partials</h2>
 
