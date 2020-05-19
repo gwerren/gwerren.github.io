@@ -9,7 +9,7 @@
 				<title>Simple C# Parser</title>
 				<link>http://gwerren.com/Blog/Posts/simpleCSharpParser</link>
 				<guid>http://gwerren.com/Blog/Posts/simpleCSharpParser</guid>
-				<pubDate>Thu, 14 May 2020</pubDate>
+				<pubDate>Thu, 14 May 2020 00:00:00 GMT</pubDate>
 				<description>A look at how to build a parser for a simple language in C# based on a set of language tokens.</description>
 			</item>
 			<item>
@@ -30,7 +30,7 @@
 				<title>Mercurial CSV Log</title>
 				<link>http://gwerren.com/Blog/Posts/mercurialCsvLog</link>
 				<guid>http://gwerren.com/Blog/Posts/mercurialCsvLog</guid>
-				<pubDate>Mon 13 May 2019 00:00:00 GMT</pubDate>
+				<pubDate>Mon, 13 May 2019 00:00:00 GMT</pubDate>
 				<description>Generating a filtered CSV file of commits from Mercurial.</description>
 			</item>
 			<item>
@@ -44,7 +44,7 @@
 				<title>Introducing Multi-Caret</title>
 				<link>http://gwerren.com/Blog/Posts/introducingMultiCaret</link>
 				<guid>http://gwerren.com/Blog/Posts/introducingMultiCaret</guid>
-				<pubDate>Mon, 4 Feb 2019 00:00:00 GMT</pubDate>
+				<pubDate>Mon, 04 Feb 2019 00:00:00 GMT</pubDate>
 				<description>A Visual Studio plugin for multi-point editing</description>
 			</item>
 			<item>
@@ -72,7 +72,7 @@
 				<title>Fail Early In Code</title>
 				<link>http://gwerren.com/Blog/Posts/failEarlyInCode</link>
 				<guid>http://gwerren.com/Blog/Posts/failEarlyInCode</guid>
-				<pubDate>Tue, 9 Jan 2018 00:00:00 GMT</pubDate>
+				<pubDate>Tue, 09 Jan 2018 00:00:00 GMT</pubDate>
 				<description>When writing code we should always consider error cases, this is a good thing. When attempting to handle an error case however...</description>
 			</item>
 			<item>
