@@ -71,10 +71,26 @@
 			z-index: 1;
 		}
 
-		.header {
+		.header-section {
+			display: flex;
+			align-items: center;
+			gap: clamp(1rem, 3vw, 2rem);
 			margin-bottom: 3rem;
+		}
+
+		.header {
 			border-left: 3px solid #1a1a1a;
 			padding-left: 2rem;
+			flex: 1;
+			min-width: 0;
+		}
+
+		.profile-photo {
+			width: clamp(4.5rem, 10vw, 7rem);
+			height: clamp(4.5rem, 10vw, 7rem);
+			border-radius: 50%;
+			object-fit: cover;
+			flex-shrink: 0;
 		}
 
 		h1 {
@@ -92,7 +108,7 @@
 
 		.title {
 			font-size: clamp(0.875rem, 2vw, 1rem);
-			color: #666;
+			color: #4a6b65;
 			letter-spacing: 0.05em;
 			font-weight: 500;
 		}
@@ -116,9 +132,9 @@
 		}
 
 		.expertise-item h2 {
-			font-size: 0.75rem;
+			font-size: 1rem;
 			letter-spacing: 0.1em;
-			color: #666;
+			color: #4a6b65;
 			margin-bottom: 0.75rem;
 			font-weight: 500;
 		}
@@ -155,7 +171,7 @@
 			position: absolute;
 			inset: 0 auto 0 0;
 			width: 0;
-			background: #1a1a1a;
+			background: #4a6b65;
 			transition: width 0.3s;
 			z-index: -1;
 		}
@@ -189,6 +205,22 @@
 		button:focus-visible {
 			outline: 3px solid #1a1a1a;
 			outline-offset: 2px;
+		}
+
+		@media (max-width: 450px) {
+			.header-section {
+				flex-direction: column;
+			}
+
+			.profile-photo {
+				width: 120px;
+				height: 120px;
+				order: 1;
+			}
+
+			.header {
+				order: 0;
+			}
 		}
 
 		@media (max-width: 768px) {
@@ -234,25 +266,28 @@
 <a href="#main-content" class="skip-link">Skip to main content</a>
 <div class="container">
 	<main id="main-content" class="content">
-		<header class="header">
-			<h1>Gareth Werren</h1>
-			<p class="title">Software Engineer | Architect | Manager | Fintech</p>
-		</header>
+		<div class="header-section">
+			<header class="header">
+				<h1>Gareth Werren</h1>
+				<p class="title">Software Engineer | Architect | Manager | Fintech</p>
+			</header>
+			<img src="/Static/gareth.png" alt="Gareth Werren" class="profile-photo">
+		</div>
 
 		<p class="intro">
 			I lead technical teams to deliver large-scale software systems in the financial sector.
-			With 19 years of experience in fintech spanning lending, pensions, and risk management,
+			With 18 years experience in fintech spanning lending, pensions, and risk management,
 			I bridge the gap between complex technical challenges and business outcomes.
 		</p>
 
 		<section class="expertise" aria-label="Areas of expertise">
 			<div class="expertise-item">
 				<h2>Leadership</h2>
-				<p>Managing distributed teams of over 20 developers across the UK, Portugal, and Eastern Europe</p>
+				<p>Managing distributed teams of 20-30 developers across the UK, Portugal, and Eastern Europe</p>
 			</div>
 			<div class="expertise-item">
 				<h2>Delivery</h2>
-				<p>Multi-million pound projects from design through implementation, maintaining legacy systems alongside new development</p>
+				<p>Multi-million pound projects from design through implementation, maintaining legacy systems alongside greenfield development</p>
 			</div>
 			<div class="expertise-item">
 				<h2>Architecture</h2>
