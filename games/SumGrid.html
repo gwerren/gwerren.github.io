@@ -18,6 +18,24 @@
             --wrong:     #b84848;
             --muted:     #7a6e5e;
             --sep:       #3e3830;
+            --text:      #f2e8d6;
+            --banner-bg: rgba(26,23,19,.92);
+        }
+
+        .light {
+            --bg:        #f5f0e8;
+            --surface:   #ede5d5;
+            --surface2:  #ddd4c0;
+            --cell-bg:   #ffffff;
+            --cell-text: #23201c;
+            --accent:    #c48a30;
+            --accent-lt: #a06820;
+            --correct:   #3d8a58;
+            --wrong:     #b84848;
+            --muted:     #8a7a6a;
+            --sep:       #b8afa0;
+            --text:      #23201c;
+            --banner-bg: rgba(245,240,232,.95);
         }
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,7 +46,7 @@
                     radial-gradient(ellipse at 20% 10%, rgba(196,138,48,.08) 0%, transparent 55%),
                     radial-gradient(ellipse at 80% 90%, rgba(90,158,114,.06) 0%, transparent 55%);
             font-family: 'Courier Prime', 'Courier New', monospace;
-            color: var(--cell-bg);
+            color: var(--text);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
@@ -51,7 +69,7 @@
 
         .tagline {
             margin-top: .35rem;
-            font-size: clamp(.6rem, 2vw, .72rem);
+            font-size: clamp(1rem, 3.2vw, 1.2rem);
             letter-spacing: .38em;
             text-transform: uppercase;
             color: var(--muted);
@@ -71,37 +89,34 @@
         }
 
         /* ── Win banner ── */
+        .grid-container {
+            position: relative;
+            margin-bottom: 1rem;
+        }
         .win-banner {
             display: none;
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
             text-align: center;
-            padding: .65rem .5rem;
-            margin-bottom: .9rem;
-            background: rgba(90,158,114,.13);
-            border: 1.5px solid var(--correct);
-            border-radius: 8px;
+            padding: .75rem .5rem;
+            background: var(--banner-bg);
+            border-top: 1.5px solid var(--correct);
+            border-bottom: 1.5px solid var(--correct);
             color: var(--correct);
             font-weight: 700;
-            font-size: .95rem;
+            font-size: 1.2rem;
             letter-spacing: .06em;
+            z-index: 10;
         }
         .win-banner.show { display: block; }
 
-        /* ── Instructions ── */
-        .instructions {
-            font-size: clamp(.62rem, 2vw, .7rem);
-            color: var(--muted);
-            text-align: center;
-            line-height: 1.65;
-            margin-bottom: 1rem;
-        }
-
-        /* ── Puzzle grid (4 cols × 4 rows) ── */
+        /* ── Puzzle grid ── */
         .grid-wrapper {
             display: grid;
-            grid-template-columns: repeat(3, 1fr) .7fr;
-            grid-template-rows: repeat(3, 1fr) .7fr;
             gap: 5px;
-            margin-bottom: 1.2rem;
         }
 
         .game-cell {
@@ -141,27 +156,19 @@
             justify-content: center;
             font-family: 'Courier Prime', monospace;
             font-weight: 700;
-            font-size: clamp(.7rem, 2.4vw, .88rem);
+            font-size: clamp(1rem, 3.2vw, 1.2rem);
             color: var(--muted);
             transition: color .25s ease;
             line-height: 1;
         }
-        .sum-cell.row-sum { border-left: 2px solid var(--sep); }
+        .sum-cell.row-sum { border-right: 2px solid var(--sep); }
         .sum-cell.col-sum { border-top:  2px solid var(--sep); }
         .s-target  { color: var(--muted); }
         .s-current { color: var(--accent-lt); }
         .s-over    { color: var(--wrong); }
         .s-correct { color: var(--correct); }
         .s-sep     { color: var(--sep); margin: 0 1px; }
-
-        /* ── Section label ── */
-        .section-lbl {
-            font-size: .62rem;
-            letter-spacing: .32em;
-            text-transform: uppercase;
-            color: var(--muted);
-            margin-bottom: .55rem;
-        }
+        .sum-stack { display: flex; flex-direction: column; align-items: center; gap: 1px; }
 
         /* ── Number bank ── */
         .bank {
@@ -169,7 +176,6 @@
             gap: 5px;
             justify-content: center;
             flex-wrap: wrap;
-            margin-bottom: 1.1rem;
         }
 
         .bank-tile {
@@ -182,7 +188,7 @@
             justify-content: center;
             font-family: 'Courier Prime', monospace;
             font-weight: 700;
-            font-size: clamp(.9rem, 3vw, 1.15rem);
+            font-size: clamp(1rem, 3.2vw, 1.2rem);
             color: var(--cell-text);
             cursor: pointer;
             transition: transform .12s ease, background .12s ease, box-shadow .12s ease;
@@ -201,8 +207,26 @@
             cursor: default;
         }
 
+        /* ── Size selector ── */
+        .size-row { display: flex; gap: 8px; margin-bottom: .6rem; }
+        .btn-size {
+            flex: 1;
+            padding: .38rem .2rem;
+            border: 1.5px solid var(--sep);
+            border-radius: 8px;
+            font-family: 'Courier Prime', monospace;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            background: transparent;
+            color: var(--muted);
+            transition: background .12s ease, color .12s ease, border-color .12s ease;
+        }
+        .btn-size:hover { border-color: var(--accent); color: var(--accent-lt); }
+        .btn-size.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
         /* ── Buttons ── */
-        .btn-row { display: flex; gap: 8px; }
+        .btn-row { display: flex; gap: 8px; margin-bottom: 2rem; }
         .btn {
             flex: 1;
             padding: .58rem .5rem;
@@ -210,7 +234,7 @@
             border-radius: 8px;
             font-family: 'Courier Prime', monospace;
             font-weight: 700;
-            font-size: .82rem;
+            font-size: 1rem;
             letter-spacing: .08em;
             text-transform: uppercase;
             cursor: pointer;
@@ -219,17 +243,28 @@
         .btn:active { transform: scale(.97); }
         .btn-primary   { background: var(--accent);  color: #fff; }
         .btn-primary:hover { background: var(--accent-lt); }
-        .btn-secondary { background: var(--surface2); color: var(--cell-bg); }
+        .btn-secondary { background: var(--surface2); color: var(--text); }
         .btn-secondary:hover { background: #45403a; }
+        .light .btn-secondary:hover { background: #c8bfb0; }
 
-        /* ── Puzzle counter ── */
-        .counter {
-            text-align: center;
-            margin-top: .7rem;
-            font-size: .62rem;
-            letter-spacing: .22em;
-            color: #5a5040;
-            text-transform: uppercase;
+        /* ── Theme toggle ── */
+        .btn-theme {
+            flex-shrink: 0;
+            width: 2.2rem;
+            padding: .38rem .2rem;
+            border: 1.5px solid transparent;
+            border-radius: 8px;
+            font-family: 'Courier Prime', monospace;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            background: #f2e8d6;
+            color: #23201c;
+            transition: background .2s ease, color .2s ease;
+        }
+        .light .btn-theme {
+            background: #23201c;
+            color: #f2e8d6;
         }
     </style>
 </head>
@@ -237,101 +272,115 @@
 
 <header>
     <h1>SUM GRID</h1>
-    <div class="tagline">Place 1–9 · Match every sum</div>
+    <div class="tagline">Place the numbers<br>match every sum</div>
 </header>
 
 <div class="card">
-    <div class="win-banner" id="winBanner">✓ &nbsp;Puzzle Solved — Well Done!</div>
-    <div class="instructions">
-        Pick a number below, then tap a cell to place it.<br>
-        Tap a placed number to pick it up again.
+    <div class="size-row" id="sizeRow">
+        <button class="btn-theme" id="btnTheme">L</button>
+        <button class="btn-size" data-idx="0">2×3</button>
+        <button class="btn-size active" data-idx="1">3×3</button>
+        <button class="btn-size" data-idx="2">3×4</button>
+        <button class="btn-size" data-idx="3">4×4</button>
     </div>
-
-    <div class="grid-wrapper" id="gameGrid"></div>
-
-    <div class="section-lbl">Available Numbers</div>
-    <div class="bank" id="numberBank"></div>
-
     <div class="btn-row">
         <button class="btn btn-secondary" id="btnReset">Reset</button>
         <button class="btn btn-primary"   id="btnNew">New Puzzle</button>
     </div>
-    <div class="counter" id="counter"></div>
+    <div class="grid-container">
+        <div class="win-banner" id="winBanner">✓ &nbsp;Puzzle Solved&nbsp; ✓<br>✓ &nbsp;Well Done&nbsp; ✓</div>
+        <div class="grid-wrapper" id="gameGrid"></div>
+    </div>
+    <div class="bank" id="numberBank"></div>
 </div>
 
 <script>
-    // ── Puzzle data: [row0, row1, row2, col0, col1, col2] ──
-    const PUZZLES = [
-        [6,15,24,12,15,18],[7,14,24,11,15,19],[8,13,24,10,16,19],[9,12,24,10,15,20],
-        [8,13,24,11,14,20],[8,15,22,10,14,21],[8,15,22, 9,15,21],[8,15,22,11,13,21],
-        [7,16,22,10,14,21],[7,17,21, 9,15,21],[6,18,21,10,15,20],[8,15,22, 9,16,20],
-        [6,17,22,11,14,20],[8,16,21,10,13,22],[6,17,22,10,16,19],[7,16,22, 9,16,20],
-        [7,16,22,10,15,20],[8,15,22, 8,17,20],[8,17,20, 9,14,22],[8,15,22,10,13,22],
-        [7,15,23,12,14,19],[7,15,23,10,16,19],[9,13,23,12,14,19],[9,13,23,10,16,19],
-        [8,14,23,10,15,20],[6,16,23,11,15,19],[7,15,23,10,15,20],[9,13,23,10,15,20],
-        [8,14,23, 9,16,20],[7,15,23,11,14,20],[7,15,23,11,16,18],[9,13,23, 9,15,21],
-        [8,14,23,10,14,21],[7,15,23,11,15,19],[7,17,21,11,16,18],[7,17,21,10,15,20],
-        [7,17,21,11,14,20],[8,15,22, 9,17,19]
+    // ── Grid size config ──
+    const GRID_SIZES = [
+        { label: '2×3', rows: 2, cols: 3 },
+        { label: '3×3', rows: 3, cols: 3 },
+        { label: '3×4', rows: 3, cols: 4 },
+        { label: '4×4', rows: 4, cols: 4 },
     ];
+    let gridSize = GRID_SIZES[1];
 
-    // ── State ──
-    let puzzleIdx = -1;
-    let puzzle    = null;
-    let grid      = Array(9).fill(null);  // placed numbers
-    let selected  = null;   // number in hand
-    let selSrc    = null;   // grid index if lifted from cell, null if from bank
-    let solved    = false;
+    // ── Game state ──
+    const state = {
+        puzzle:   null,   // target row/col sums
+        grid:     [],     // placed numbers (null = empty)
+        selected: null,   // number currently in hand
+        selSrc:   null,   // grid index if lifted from a cell, null if from bank
+        solved:   false,
+    };
+
+    // ── Target sum generator ──
+    function generateTargetSums() {
+        const { rows, cols } = gridSize;
+        const count = rows * cols;
+        const nums = Array.from({ length: count }, (_, i) => i + 1);
+        for (let i = nums.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [nums[i], nums[j]] = [nums[j], nums[i]];
+        }
+        const rowSums = [];
+        for (let r = 0; r < rows; r++) {
+            let s = 0;
+            for (let c = 0; c < cols; c++) s += nums[r * cols + c];
+            rowSums.push(s);
+        }
+        const colSums = [];
+        for (let c = 0; c < cols; c++) {
+            let s = 0;
+            for (let r = 0; r < rows; r++) s += nums[r * cols + c];
+            colSums.push(s);
+        }
+        return [...rowSums, ...colSums];
+    }
 
     // ── Core logic ──
-    function newGame() {
-        let idx;
-        do { idx = Math.floor(Math.random() * PUZZLES.length); }
-        while (idx === puzzleIdx && PUZZLES.length > 1);
-        puzzleIdx = idx;
-        puzzle    = PUZZLES[idx];
-        grid      = Array(9).fill(null);
-        selected  = null;
-        selSrc    = null;
-        solved    = false;
+    function clearBoard() {
+        state.grid     = Array(gridSize.rows * gridSize.cols).fill(null);
+        state.selected = null;
+        state.selSrc   = null;
+        state.solved   = false;
         document.getElementById('winBanner').classList.remove('show');
+    }
+
+    function newGame() {
+        state.puzzle = generateTargetSums();
+        clearBoard();
         render();
-        document.getElementById('counter').textContent =
-            `Puzzle ${idx + 1} of ${PUZZLES.length}`;
     }
 
     function resetPuzzle() {
-        grid     = Array(9).fill(null);
-        selected = null;
-        selSrc   = null;
-        solved   = false;
-        document.getElementById('winBanner').classList.remove('show');
+        clearBoard();
         render();
     }
 
     function handleCellClick(i) {
-        if (solved) return;
+        if (state.solved) return;
 
-        if (selected !== null) {
-            if (selSrc === i) {
+        if (state.selected !== null) {
+            if (state.selSrc === i) {
                 // Tapped source cell → cancel, put back
-                grid[i] = selected;
-                selected = null;
-                selSrc   = null;
+                state.grid[i]  = state.selected;
+                state.selected = null;
+                state.selSrc   = null;
             } else {
-                const displaced = grid[i];          // could be null
-                grid[i] = selected;
-                if (selSrc !== null) {
-                    grid[selSrc] = displaced;         // swap or clear source cell
+                const displaced = state.grid[i];
+                state.grid[i]   = state.selected;
+                if (state.selSrc !== null) {
+                    state.grid[state.selSrc] = displaced;  // swap or clear source cell
                 }
                 // If selSrc was null (from bank), displaced goes to bank automatically
-                selected = null;
-                selSrc   = null;
+                state.selected = null;
+                state.selSrc   = null;
             }
         } else {
-            if (grid[i] !== null) {
-                selected = grid[i];
-                selSrc   = i;
-                grid[i]  = null;
+            if (state.grid[i] !== null) {
+                state.selected = state.grid[i];
+                state.selSrc   = i;
+                state.grid[i]  = null;
             }
         }
 
@@ -340,55 +389,66 @@
     }
 
     function handleBankClick(n) {
-        if (solved) return;
-        if (grid.includes(n)) return;
+        if (state.solved) return;
 
-        if (selected === n) {
+        if (state.grid.includes(n)) {
+            // Clicking a used tile pulls it back to the bank
+            state.grid[state.grid.indexOf(n)] = null;
+            render();
+            return;
+        }
+
+        if (state.selected === n) {
             // Tap same number → release to bank (source cell stays empty)
-            selected = null;
-            selSrc   = null;
+            state.selected = null;
+            state.selSrc   = null;
         } else {
             // Switch selection: return any grid-lifted number to its source
-            if (selSrc !== null) grid[selSrc] = selected;
-            selected = n;
-            selSrc   = null;
+            if (state.selSrc !== null) state.grid[state.selSrc] = state.selected;
+            state.selected = n;
+            state.selSrc   = null;
         }
         render();
     }
 
     // ── Sum helpers ──
     function rowInfo(r) {
-        const vals = [grid[r*3], grid[r*3+1], grid[r*3+2]];
+        const { cols } = gridSize;
+        const vals   = Array.from({ length: cols }, (_, c) => state.grid[r * cols + c]);
         const filled = vals.filter(v => v !== null);
-        return { sum: filled.reduce((a,b)=>a+b,0), count: filled.length, target: puzzle[r] };
+        return { sum: filled.reduce((a, b) => a + b, 0), count: filled.length, total: cols, target: state.puzzle[r] };
     }
 
     function colInfo(c) {
-        const vals = [grid[c], grid[c+3], grid[c+6]];
+        const { rows, cols } = gridSize;
+        const vals   = Array.from({ length: rows }, (_, r) => state.grid[r * cols + c]);
         const filled = vals.filter(v => v !== null);
-        return { sum: filled.reduce((a,b)=>a+b,0), count: filled.length, target: puzzle[3+c] };
+        return { sum: filled.reduce((a, b) => a + b, 0), count: filled.length, total: rows, target: state.puzzle[rows + c] };
     }
 
-    function sumHTML(info) {
+    function sumHTML(info, stacked = false) {
         const tgt = `<span class="s-target">${info.target}</span>`;
-        const sep = `<span class="s-sep">·</span>`;
 
-        if (info.count === 3 && info.sum === info.target) {
+        if (info.count === info.total && info.sum === info.target) {
             return `<span class="s-correct">${info.target}</span>`;
         }
         if (info.count === 0) return tgt;
 
-        const over    = info.sum > info.target;
-        const curCls  = over ? 's-over' : 's-current';
-        return `<span class="${curCls}">${info.sum}</span>${sep}${tgt}`;
+        const over   = info.sum > info.target;
+        const curCls = over ? 's-over' : 's-current';
+        const cur    = `<span class="${curCls}">${info.sum}</span>`;
+        const sep    = `<span class="s-sep">·</span>`;
+
+        if (stacked) return `<span class="sum-stack">${cur}${sep}${tgt}</span>`;
+        return `${cur}${sep}${tgt}`;
     }
 
     // ── Win check ──
     function checkWin() {
-        if (grid.some(v => v === null)) return;
-        for (let r = 0; r < 3; r++) { const inf = rowInfo(r); if (inf.sum !== inf.target) return; }
-        for (let c = 0; c < 3; c++) { const inf = colInfo(c); if (inf.sum !== inf.target) return; }
-        solved = true;
+        if (state.grid.some(v => v === null)) return;
+        for (let r = 0; r < gridSize.rows; r++) { const inf = rowInfo(r); if (inf.sum !== inf.target) return; }
+        for (let c = 0; c < gridSize.cols; c++) { const inf = colInfo(c); if (inf.sum !== inf.target) return; }
+        state.solved = true;
         document.getElementById('winBanner').classList.add('show');
         document.querySelectorAll('.game-cell').forEach((el, i) =>
             setTimeout(() => el.classList.add('win-flash'), i * 55)
@@ -402,77 +462,81 @@
     }
 
     function renderGrid() {
+        const { rows, cols } = gridSize;
         const root = document.getElementById('gameGrid');
         root.innerHTML = '';
+        root.style.gridTemplateColumns = `.7fr repeat(${cols}, 1fr)`;
+        root.style.gridTemplateRows    = `repeat(${rows}, 1fr) .7fr`;
+        const bannerTop = (rows / 2) / (rows + 0.74) * 100;
+        document.getElementById('winBanner').style.top = `${bannerTop.toFixed(1)}%`;
 
-        for (let r = 0; r < 3; r++) {
-            // Three game cells
-            for (let c = 0; c < 3; c++) {
-                const i   = r * 3 + c;
+        for (let r = 0; r < rows; r++) {
+            const ri = rowInfo(r);
+            const rs = document.createElement('div');
+            rs.className = 'sum-cell row-sum';
+            rs.innerHTML = sumHTML(ri, true);
+            root.appendChild(rs);
+
+            for (let c = 0; c < cols; c++) {
+                const i   = r * cols + c;
                 const div = document.createElement('div');
                 div.className = 'game-cell';
-
-                if (selSrc === i) {
+                if (state.selSrc === i) {
                     div.classList.add('source');
-                } else if (grid[i] !== null) {
+                } else if (state.grid[i] !== null) {
                     div.classList.add('filled');
-                    div.textContent = grid[i];
+                    div.textContent = state.grid[i];
                 }
                 div.addEventListener('click', () => handleCellClick(i));
                 root.appendChild(div);
             }
-
-            // Row sum
-            const ri  = rowInfo(r);
-            const rs  = document.createElement('div');
-            rs.className   = 'sum-cell row-sum';
-            rs.innerHTML   = sumHTML(ri);
-            root.appendChild(rs);
         }
 
-        // Column sums row
-        for (let c = 0; c < 3; c++) {
-            const ci  = colInfo(c);
-            const cs  = document.createElement('div');
-            cs.className   = 'sum-cell col-sum';
-            cs.innerHTML   = sumHTML(ci);
-            root.appendChild(cs);
-        }
-
-        // Corner
         const corner = document.createElement('div');
         corner.className = 'sum-cell';
         root.appendChild(corner);
+
+        for (let c = 0; c < cols; c++) {
+            const ci = colInfo(c);
+            const cs = document.createElement('div');
+            cs.className = 'sum-cell col-sum';
+            cs.innerHTML = sumHTML(ci);
+            root.appendChild(cs);
+        }
     }
 
     function renderBank() {
         const root = document.getElementById('numberBank');
         root.innerHTML = '';
 
-        for (let n = 1; n <= 9; n++) {
-            const div    = document.createElement('div');
+        for (let n = 1; n <= gridSize.rows * gridSize.cols; n++) {
+            const div = document.createElement('div');
             div.className   = 'bank-tile';
             div.textContent = n;
 
-            const inGrid   = grid.includes(n);
-            const isSel    = selected === n;
-
-            if (inGrid) {
-                div.classList.add('used');
-            } else if (isSel) {
-                div.classList.add('selected-bank');
-                div.addEventListener('click', () => handleBankClick(n));
-            } else {
-                div.addEventListener('click', () => handleBankClick(n));
-            }
+            if (state.grid.includes(n)) div.classList.add('used');
+            if (state.selected === n)   div.classList.add('selected-bank');
+            div.addEventListener('click', () => handleBankClick(n));
 
             root.appendChild(div);
         }
     }
 
     // ── Wiring ──
+    document.querySelectorAll('.btn-size').forEach(btn => {
+        btn.addEventListener('click', () => {
+            gridSize = GRID_SIZES[+btn.dataset.idx];
+            document.querySelectorAll('.btn-size').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            newGame();
+        });
+    });
     document.getElementById('btnNew').addEventListener('click', newGame);
     document.getElementById('btnReset').addEventListener('click', resetPuzzle);
+    document.getElementById('btnTheme').addEventListener('click', () => {
+        const isLight = document.documentElement.classList.toggle('light');
+        document.getElementById('btnTheme').textContent = isLight ? 'D' : 'L';
+    });
 
     newGame();
 </script>
