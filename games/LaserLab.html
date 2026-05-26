@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Laser Lab</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #090f1a;
+  color: #c8d8e8;
+  font-family: 'Courier New', monospace;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 12px;
+  gap: 12px;
+  overflow-x: hidden;
+}
+
+h1 {
+  font-size: clamp(1.25rem, 7.1vw, 2.2rem);
+  letter-spacing: 0.18em;
+  color: #6ab0d8;
+  text-transform: uppercase;
+  font-weight: normal;
+}
+
+@keyframes blink { to { opacity: 0.55; } }
+
+/* ── Grid ───────────────────────────── */
+#grid-wrap {
+  position: relative;
+  width: min(84vw, 330px);
+  aspect-ratio: 1;
+}
+#grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  /* grid-template-columns/rows are set per-level in renderGrid() */
+  gap: 5px;
+  padding: 5px;
+  background: #0e1a2a;
+  border-radius: 10px;
+  border: 1px solid #1c3050;
+}
+
+.cell {
+  background: #121e2f;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  position: relative;
+  border: 1px solid #1a2e48;
+  transition: background 0.12s, border-color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.cell.interactive { cursor: pointer; }
+.cell.interactive:active { background: #1a3050; }
+
+@media (hover: hover) {
+  .cell.interactive:hover  { background: #182840; border-color: #2a4868; }
+  .cell.removable:hover    { border-color: #c06060; }
+}
+
+/* ── Pulse animations ── */
+@keyframes source-pulse {
+  0%, 100% { box-shadow: 0 0 6px #ffffff33, 0 0 3px #d0e8ff; }
+  50%       { box-shadow: 0 0 22px #ffffffbb, 0 0 10px #e8f4ff; }
+}
+@keyframes source-pulse-green {
+  0%, 100% { box-shadow: 0 0 6px #44ff8833, 0 0 3px #80ffaa; }
+  50%       { box-shadow: 0 0 22px #44ff88bb, 0 0 10px #80ffaa; }
+}
+@keyframes laser-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%       { opacity: 1; }
+}
+
+/* ── Flask ──────────────────────────── */
+@keyframes flask-explode {
+  0%   { transform: scale(1)    rotate(0deg); }
+  25%  { transform: scale(1.18) rotate(-8deg); }
+  55%  { transform: scale(1.12) rotate(6deg); }
+  80%  { transform: scale(1.05) rotate(-3deg); }
+  100% { transform: scale(1)    rotate(0deg); }
+}
+.flask-svg.exploded {
+  animation: flask-explode 0.45s ease-out forwards;
+  filter: drop-shadow(0 0 7px #ff4422bb);
+}
+
+/* ── Source ─────────────────────────── */
+.source-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.source-dot {
+  width: 44%;
+  height: 44%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 38%, #ffffff, #a0b8cc);
+  box-shadow: 0 0 10px #ffffff66, 0 0 4px #d0e8ff;
+}
+.source-dot.color-green {
+  background: radial-gradient(circle at 38% 38%, #aaffcc, #3a8860);
+  box-shadow: 0 0 10px #44ff8866, 0 0 4px #80ffaa;
+}
+@keyframes source-pulse-red {
+  0%, 100% { box-shadow: 0 0 6px #ff443333, 0 0 3px #ff9080; }
+  50%       { box-shadow: 0 0 22px #ff4433bb, 0 0 10px #ff9080; }
+}
+.source-dot.color-red {
+  background: radial-gradient(circle at 38% 38%, #ffaaaa, #882222);
+  box-shadow: 0 0 10px #ff443366, 0 0 4px #ff9080;
+}
+.source-dot.pulsing       { animation: source-pulse       1.2s ease-in-out infinite; }
+.source-dot.pulsing-green { animation: source-pulse-green 1.2s ease-in-out infinite; }
+.source-dot.pulsing-red   { animation: source-pulse-red   1.2s ease-in-out infinite; }
+#laser-svg.pulsing        { animation: laser-pulse         1.2s ease-in-out infinite; }
+
+/* ── Target — white ─────────────────── */
+@keyframes target-pulse {
+  0%, 100% { box-shadow: 0 0 4px #ffffff22; border-color: #8ab0cc; }
+  50%       { box-shadow: 0 0 18px #ffffffcc, 0 0 32px #ffffff44; border-color: #ffffff; }
+}
+@keyframes inner-pulse {
+  0%, 100% { background: #8ab0cc; }
+  50%       { background: #ffffff; }
+}
+
+/* ── Target — green ─────────────────── */
+@keyframes target-pulse-green {
+  0%, 100% { box-shadow: 0 0 4px #44ff8822; border-color: #3dd86b; }
+  50%       { box-shadow: 0 0 18px #44ff88cc, 0 0 32px #44ff8844; border-color: #88ffaa; }
+}
+@keyframes inner-pulse-green {
+  0%, 100% { background: #3dd86b; }
+  50%       { background: #aaffcc; }
+}
+
+/* ── Target — red ───────────────────── */
+@keyframes target-pulse-red {
+  0%, 100% { box-shadow: 0 0 4px #ff443322; border-color: #dd5544; }
+  50%       { box-shadow: 0 0 18px #ff4433cc, 0 0 32px #ff443344; border-color: #ff8877; }
+}
+@keyframes inner-pulse-red {
+  0%, 100% { background: #dd5544; }
+  50%       { background: #ffaaaa; }
+}
+
+/* ── Target — yellow ────────────────── */
+@keyframes target-pulse-yellow {
+  0%, 100% { box-shadow: 0 0 4px #ccbb0022; border-color: #ccbb00; }
+  50%       { box-shadow: 0 0 18px #ffee44cc, 0 0 32px #ffee4444; border-color: #ffee44; }
+}
+@keyframes inner-pulse-yellow {
+  0%, 100% { background: #ccbb00; }
+  50%       { background: #ffff88; }
+}
+
+.target-outer {
+  width: 62%;
+  height: 62%;
+  border-radius: 50%;
+  border: 2.5px solid #8ab0cc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 5px #4488aa44;
+}
+.target-outer.color-green              { border-color: #3dd86b; }
+.target-outer.color-red                { border-color: #dd5544; }
+.target-outer.color-yellow             { border-color: #ccbb00; }
+.target-outer.hit                      { animation: target-pulse        1.2s ease-in-out infinite; }
+.target-outer.hit-green                { animation: target-pulse-green  1.2s ease-in-out infinite; }
+.target-outer.hit-red                  { animation: target-pulse-red    1.2s ease-in-out infinite; }
+.target-outer.hit-yellow               { animation: target-pulse-yellow 1.2s ease-in-out infinite; }
+.target-inner {
+  width: 34%;
+  height: 34%;
+  border-radius: 50%;
+  background: #8ab0cc;
+}
+.target-inner.color-green              { background: #3dd86b; }
+.target-inner.color-red                { background: #dd5544; }
+.target-inner.color-yellow             { background: #ccbb00; }
+.target-outer.hit        .target-inner { animation: inner-pulse        1.2s ease-in-out infinite; }
+.target-outer.hit-green  .target-inner { animation: inner-pulse-green  1.2s ease-in-out infinite; }
+.target-outer.hit-red    .target-inner { animation: inner-pulse-red    1.2s ease-in-out infinite; }
+.target-outer.hit-yellow .target-inner { animation: inner-pulse-yellow 1.2s ease-in-out infinite; }
+
+/* ── Mirror ─────────────────────────── */
+.mirror-bar {
+  width: 68%;
+  height: 3px;
+  background: linear-gradient(90deg, #3a8fcc, #6ab8f0, #3a8fcc);
+  box-shadow: 0 0 7px #5ab0e866;
+  border-radius: 2px;
+}
+.mirror-slash  { transform: rotate(-45deg); }
+.mirror-bslash { transform: rotate(45deg);  }
+
+/* ── Combiner ───────────────────────────── */
+.combiner-bar {
+  width: 68%;
+  height: 4px;
+  background: linear-gradient(90deg, #ff6666, #ffcc44, #44ff88, #4488ff);
+  box-shadow: 0 0 8px #ffffff55;
+  border-radius: 2px;
+  transform: rotate(-45deg);
+}
+
+/* ── SVG laser overlay ───────────────── */
+#laser-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* ── Inventory ──────────────────────── */
+#inv-wrap {
+  width: min(84vw, 330px);
+}
+#inventory {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.inv-slot {
+  width: 68px;
+  height: 88px;
+  background: #0e1a2a;
+  border: 2px solid #1c3050;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.14s, background 0.14s, outline-color 0.14s, box-shadow 0.14s;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+.inv-slot:not(.depleted):hover { border-color: #4a88b8; background: #14263a; }
+.inv-slot.selected             { border-color: #4a88b8; background: #0e2a1a; outline-color: #3dd86b; box-shadow: 0 0 8px #3dd86b55; }
+.inv-slot.depleted             { opacity: 0.28; cursor: not-allowed; }
+
+.inv-icon-wrap {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.inv-icon {
+  width: 36px;
+  height: 3px;
+  background: #5ab0e8;
+  box-shadow: 0 0 4px #5ab0e844;
+  border-radius: 2px;
+}
+.inv-slash  { transform: rotate(-45deg); }
+.inv-bslash { transform: rotate(45deg);  }
+
+.inv-count-bar {
+  width: 100%;
+  padding: 3px 0;
+  text-align: center;
+  font-size: 1.16rem;
+  color: #5a80a0;
+  letter-spacing: 0.04em;
+  border-top: 1px solid #1c3050;
+  background: #0a1520;
+}
+
+/* ── Banner ─────────────────────────── */
+#banner {
+  display: none;
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 1.1rem 0.5rem;
+  background: rgba(9,15,26,0.93);
+  z-index: 10;
+  text-align: center;
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+#banner.show { display: flex; }
+#banner.win  { border-top: 1.5px solid #3dd86b; border-bottom: 1.5px solid #3dd86b; color: #3dd86b; }
+#banner.fail { border-top: 1.5px solid #ff5544; border-bottom: 1.5px solid #ff5544; color: #ff5544; }
+#banner-btn {
+  padding: 8px 22px;
+  background: transparent;
+  color: #3dd86b;
+  border: 1px solid #3dd86b;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+#banner-btn:hover  { background: rgba(61,216,107,0.12); }
+#banner-btn:active { background: rgba(61,216,107,0.22); }
+#banner-btn.fail { color: #ff5544; border-color: #ff5544; }
+#banner-btn.fail:hover  { background: rgba(255,85,68,0.12); }
+#banner-btn.fail:active { background: rgba(255,85,68,0.22); }
+
+/* ── Buttons ────────────────────────── */
+#buttons {
+  width: min(84vw, 330px);
+}
+button {
+  padding: 9px 22px;
+  background: #0e1a2a;
+  color: #5a80a0;
+  border: 1px solid #1c3050;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1.2rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background 0.12s, color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+button:hover  { background: #14263a; color: #88aac8; }
+button:active { background: #1c3050; }
+#btn-reset { width: 100%; }
+
+/* ── Level nav ──────────────────────── */
+#level-nav {
+  display: flex;
+  justify-content: center;
+  width: min(84vw, 330px);
+}
+#level-nav-label {
+  height: 34px;
+  padding: 0 9px;
+  background: #0e1a2a;
+  color: #3a5878;
+  border: 1px solid #1c3050;
+  border-radius: 5px 0 0 5px;
+  font-size: 1.08rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+}
+.lvl-btn-group { display: flex; }
+.lvl-btn {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 7px;
+  background: #0e1a2a;
+  color: #5a80a0;
+  border: 1px solid #1c3050;
+  border-radius: 0;
+  margin-left: -1px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1.08rem;
+  letter-spacing: 0.04em;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+.lvl-btn-group > button:last-child { border-radius: 0 5px 5px 0; }
+.lvl-btn:hover  { background: #14263a; color: #88aac8; z-index: 1; }
+.lvl-btn.active { border-color: #4a88b8; color: #3dd86b; background: #0e2a1a; z-index: 2; outline: 2px solid #3dd86b; outline-offset: 2px; box-shadow: 0 0 8px #3dd86b55; }
+</style>
+</head>
+<body>
+
+<h1>&#9879; Laser Lab</h1>
+<div id="grid-wrap">
+  <div id="grid"></div>
+  <svg id="laser-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+  <div id="banner">
+    <div id="banner-msg"></div>
+    <button id="banner-btn" hidden></button>
+  </div>
+</div>
+
+<div id="inv-wrap">
+  <div id="inventory"></div>
+</div>
+
+<div id="buttons">
+  <button id="btn-reset">&#8634; Reset</button>
+</div>
+
+<div id="level-nav"></div>
+
+<script>
+const DV = {
+  right: [0,  1],
+  left:  [0, -1],
+  up:    [-1, 0],
+  down:  [1,  0]
+};
+
+const REFLECT = {
+  '/':  { right:'up',   up:'right',  left:'down',  down:'left'  },
+  '\\': { right:'down', down:'right', left:'up',   up:'left'    }
+};
+
+// Splitter: white beam entering from a given direction splits into two coloured outputs.
+const SPLITTER_OUTPUTS = {
+  right: { white: [['right', 'green'], ['up', 'red']] }
+};
+
+// Combiner: red reflects using '/' rules; green transmits straight through.
+// When both hit the same cell from compatible directions they combine into yellow.
+// COMBINER_OUTPUTS[variant][redEntryDir][greenEntryDir] = yellowExitDir
+const COMBINER_OUTPUTS = {
+  '/': {
+    right: { up:   'up'    },
+    up:    { right: 'right' },
+    left:  { down: 'down'  },
+    down:  { left: 'left'  }
+  }
+};
+
+const LASER_COLORS = {
+  white:  { glow: '#c8e8ff', core: '#f0f8ff' },
+  green:  { glow: '#80ffaa', core: '#ccffdd' },
+  red:    { glow: '#ff9080', core: '#ffcccc' },
+  yellow: { glow: '#ffee44', core: '#ffff99' }
+};
+
+const COLOR_CSS = {
+  white:  { colorClass: '',             hitClass: 'hit',        pulseClass: 'pulsing'       },
+  green:  { colorClass: 'color-green',  hitClass: 'hit-green',  pulseClass: 'pulsing-green' },
+  red:    { colorClass: 'color-red',    hitClass: 'hit-red',    pulseClass: 'pulsing-red'   },
+  yellow: { colorClass: 'color-yellow', hitClass: 'hit-yellow', pulseClass: ''              }
+};
+
+// ── Item registry ────────────────────────────────────────────
+// Every grid item is defined here in one place. To add a new item type,
+// add an entry with:
+//   trace(ctx)        how a beam behaves on entering the cell (see below)
+//   buildBoardEl(cell, r, c)   the element drawn in the grid
+//   buildInvIcon(item)         the inventory icon (placeable items only)
+//   resolve(ctx)               optional: emit beams after primary trace settles
+//
+// trace(ctx) receives { cell, dir, color, r, c, queue } and returns a directive:
+//   { pass: true }             beam continues unchanged (passes over the cell)
+//   { dir: <newDir> }          beam turns and continues
+//   { hitTarget|hitFlask|hitCombiner: {...} }   beam stops, recording the hit
+//   {}                         beam stops with no recorded hit (e.g. splitter)
+// A trace may also push spawned beams onto `queue`.
+const ITEMS = {
+  source: {
+    trace: () => ({ pass: true }),
+    buildBoardEl: (cell, r, c) => buildSource(cell, r, c)
+  },
+  target: {
+    trace: ({ cell, color, r, c }) => ({ hitTarget: { r, c, matched: cell.color === color } }),
+    buildBoardEl: (cell, r, c) => buildTarget(cell, r, c)
+  },
+  flask: {
+    trace: ({ r, c }) => ({ hitFlask: { r, c } }),
+    buildBoardEl: (cell, r, c) => buildFlask(r, c)
+  },
+  mirror: {
+    trace: ({ cell, dir }) => ({ dir: REFLECT[cell.variant][dir] }),
+    buildBoardEl: cell => buildMirrorEl(cell),
+    buildInvIcon: item => buildMirrorInvIcon(item)
+  },
+  splitter: {
+    trace: ({ dir, color, r, c, queue }) => {
+      const outputs = SPLITTER_OUTPUTS[dir]?.[color];
+      if (outputs) for (const [outDir, outColor] of outputs) {
+        queue.push({ r, c, dir: outDir, color: outColor });
+      }
+      return {};
+    },
+    buildBoardEl: () => buildSplitterEl(),
+    buildInvIcon: () => buildSplitterInvIcon()
+  },
+  combiner: {
+    trace: ({ dir, r, c }) => ({ hitCombiner: { r, c, entryDir: dir } }),
+    buildBoardEl: () => buildCombinerEl(),
+    buildInvIcon: () => buildCombinerInvIcon(),
+    resolve: ({ r, c, cell, results, emit }) => {
+      const redBeam = results.find(b => b.color === 'red'   && b.hitCombiner?.r === r && b.hitCombiner?.c === c);
+      const grnBeam = results.find(b => b.color === 'green' && b.hitCombiner?.r === r && b.hitCombiner?.c === c);
+      if (!redBeam || !grnBeam) return;
+      const yellowDir = COMBINER_OUTPUTS[cell.variant]?.[redBeam.hitCombiner.entryDir]?.[grnBeam.hitCombiner.entryDir];
+      if (yellowDir) emit(yellowDir, 'yellow');
+    }
+  }
+};
+
+const LEVELS = [
+  {
+    size: 4,
+    fixed: [
+      { r:3, c:0, type:'source', color:'white', dir:'right' },
+      { r:0, c:3, type:'target', color:'white' }
+    ],
+    inventory: [
+      { type:'mirror', variant:'/', label:'Mirror /', count:1 }
+    ]
+  },
+  {
+    size: 4,
+    fixed: [
+      { r:3, c:0, type:'source', color:'white', dir:'right' },
+      { r:0, c:3, type:'target', color:'white' },
+      { r:3, c:2, type:'source', color:'green',  dir:'up' },
+      { r:2, c:3, type:'target', color:'green' }
+    ],
+    inventory: [
+      { type:'mirror', variant:'/', label:'Mirror /', count:3 }
+    ]
+  },
+  {
+    size: 4,
+    fixed: [
+      { r:3, c:0, type:'source', color:'white', dir:'right' },
+      { r:2, c:3, type:'target', color:'green' },
+      { r:0, c:3, type:'target', color:'red' }
+    ],
+    inventory: [
+      { type:'splitter', label:'Splitter', count:1 },
+      { type:'mirror',   variant:'/', label:'Mirror /', count:2 }
+    ]
+  },
+  {
+    size: 4,
+    fixed: [
+      { r:3, c:0, type:'source', color:'white', dir:'right' },
+      { r:2, c:3, type:'target', color:'green' },
+      { r:1, c:3, type:'target', color:'red' },
+      { r:0, c:2, type:'flask' }
+    ],
+    inventory: [
+      { type:'splitter', label:'Splitter', count:1 },
+      { type:'mirror',   variant:'/', label:'Mirror /', count:2 }
+    ]
+  },
+  {
+    size: 4,
+    fixed: [
+      { r:0, c:0, type:'source', color:'red',   dir:'right' },
+      { r:3, c:0, type:'source', color:'green', dir:'right' },
+      { r:0, c:3, type:'target', color:'yellow' }
+    ],
+    inventory: [
+      { type:'combiner', variant:'/', label:'Combiner',  count:1 },
+      { type:'mirror',   variant:'\\', label:'Mirror \\', count:2 },
+      { type:'mirror',   variant:'/', label:'Mirror /',  count:1 }
+    ]
+  }
+];
+
+// ── State ────────────────────────────────────────────────────
+let G, inv, selIdx, won, failed, laserResults, currentLevel, gridSize;
+
+function loadLevel(idx) {
+  currentLevel = idx;
+  const level = LEVELS[idx];
+  gridSize = level.size;
+  G = Array.from({length: gridSize}, () => Array(gridSize).fill(null));
+  for (const f of level.fixed) {
+    G[f.r][f.c] = { type: f.type, color: f.color, dir: f.dir, fixed: true };
+  }
+  inv = level.inventory.map(it => ({ ...it, remaining: it.count }));
+  selIdx = null;
+  won = false;
+  failed = false;
+  laserResults = [];
+  renderLevelNav();
+  render();
+}
+
+function reset() { loadLevel(currentLevel); }
+
+// ── Laser trace ──────────────────────────────────────────────
+function traceAll() {
+  const results = [];
+  const queue = [];
+  const visited = new Set();
+
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      if (G[r][c]?.type === 'source') {
+        queue.push({ r, c, dir: G[r][c].dir, color: G[r][c].color });
+      }
+    }
+  }
+  drainQueue(queue, visited, results);
+
+  // Multi-input items (e.g. combiner) resolve after the primary beams settle:
+  // they inspect what reached them and may emit new beams.
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      const cell = G[r][c];
+      const resolve = cell && ITEMS[cell.type]?.resolve;
+      if (!resolve) continue;
+      resolve({
+        r, c, cell, results,
+        emit: (dir, color) => {
+          const key = `${r},${c},${dir},${color}`;
+          if (visited.has(key)) return;
+          visited.add(key);
+          results.push(traceBeam(r, c, dir, color, queue));
+          drainQueue(queue, visited, results);
+        }
+      });
+    }
+  }
+
+  return results;
+}
+
+function drainQueue(queue, visited, results) {
+  while (queue.length) {
+    const { r, c, dir, color } = queue.shift();
+    const key = `${r},${c},${dir},${color}`;
+    if (visited.has(key)) continue;
+    visited.add(key);
+    results.push(traceBeam(r, c, dir, color, queue));
+  }
+}
+
+function traceBeam(r0, c0, d0, color, queue) {
+  const pts = [[r0, c0]];
+  let r = r0, c = c0, d = d0;
+  let hitTarget = null, hitFlask = null, hitCombiner = null, exitDir = null;
+
+  for (let i = 0; i < gridSize * gridSize * 2; i++) {
+    const [dr, dc] = DV[d];
+    const nr = r + dr, nc = c + dc;
+    if (nr < 0 || nr >= gridSize || nc < 0 || nc >= gridSize) {
+      exitDir = d;
+      break;
+    }
+    pts.push([nr, nc]);
+    const cell = G[nr][nc];
+    const trace = cell && ITEMS[cell.type]?.trace;
+    if (!trace) { r = nr; c = nc; continue; }   // empty cell: pass straight through
+
+    const res = trace({ cell, dir: d, color, r: nr, c: nc, queue });
+    r = nr; c = nc;
+    if (res.pass) continue;                      // beam continues unchanged (e.g. source)
+    if (res.dir) { d = res.dir; continue; }      // beam turns (e.g. mirror)
+    // otherwise the beam stops here; record whatever it hit
+    if (res.hitTarget)   hitTarget = res.hitTarget;
+    if (res.hitFlask)    hitFlask = res.hitFlask;
+    if (res.hitCombiner) hitCombiner = res.hitCombiner;
+    break;
+  }
+  return { color, pts, hitTarget, hitFlask, hitCombiner, exitDir };
+}
+
+// ── Win / fail checks ────────────────────────────────────────
+function isBeamComplete(r0, c0, color) {
+  const beam = laserResults.find(b => b.color === color && b.pts[0][0] === r0 && b.pts[0][1] === c0);
+  if (!beam) return false;
+  if (beam.hitTarget) return beam.hitTarget.matched;
+  const [endR, endC] = beam.pts[beam.pts.length - 1];
+  const endCell = G[endR]?.[endC];
+  if (endCell?.type === 'splitter') {
+    const downstream = laserResults.filter(b => b.pts[0][0] === endR && b.pts[0][1] === endC && b !== beam);
+    return downstream.length > 0 && downstream.every(b => isBeamComplete(b.pts[0][0], b.pts[0][1], b.color));
+  }
+  if (endCell?.type === 'combiner') {
+    return isBeamComplete(endR, endC, 'yellow');
+  }
+  return false;
+}
+
+function sourceIsHit(r, c) {
+  const cell = G[r][c];
+  if (!cell || cell.type !== 'source') return false;
+  return isBeamComplete(r, c, cell.color);
+}
+
+function targetIsHit(r, c) {
+  return laserResults.some(lr =>
+    lr.hitTarget?.r === r && lr.hitTarget?.c === c && lr.hitTarget?.matched
+  );
+}
+
+function checkWin() {
+  const targets = [];
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      if (G[r][c]?.type === 'target') targets.push({ r, c });
+    }
+  }
+  return targets.length > 0 && targets.every(t =>
+    laserResults.some(lr =>
+      lr.hitTarget?.r === t.r && lr.hitTarget?.c === t.c && lr.hitTarget?.matched
+    )
+  );
+}
+
+// ── Render ───────────────────────────────────────────────────
+function render() {
+  laserResults = traceAll();
+  failed = laserResults.some(res => res.hitFlask);
+  won = !failed && checkWin();
+  renderGrid();
+  renderInventory();
+  renderBanner();
+  requestAnimationFrame(renderLaser);
+}
+
+function renderGrid() {
+  const el = document.getElementById('grid');
+  el.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+  el.style.gridTemplateRows    = `repeat(${gridSize}, 1fr)`;
+  el.innerHTML = '';
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      const cell = G[r][c];
+      const div = document.createElement('div');
+      div.className = 'cell';
+
+      if (!cell) {
+        div.classList.add('interactive');
+        div.addEventListener('click', () => onEmptyClick(r, c));
+      } else {
+        div.appendChild(ITEMS[cell.type].buildBoardEl(cell, r, c));
+        if (!cell.fixed) {
+          div.classList.add('removable', 'interactive');
+          div.addEventListener('click', () => onPlacedClick(r, c));
+        }
+      }
+      el.appendChild(div);
+    }
+  }
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function svgEl(tag, attrs) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+
+// Rainbow bar drawn along the '/' diagonal, shared by splitter and combiner.
+// Two coordinate sets: 44-unit board icons and 28-unit inventory icons.
+const RAINBOW_BAR = {
+  board: { stroke: '3.5', segs: [['#ff6666','8,36','16,28'],['#ffcc44','16,28','24,20'],['#44ff88','24,20','30,14'],['#4488ff','30,14','36,8']] },
+  inv:   { stroke: '2.5', segs: [['#ff6666','5,23','10,18'],['#ffcc44','10,18','15,13'],['#44ff88','15,13','19,9'],['#4488ff','19,9','23,5']] }
+};
+
+// Builds a square SVG containing the rainbow bar plus the given arrows.
+// `arrows` is an array of { points, fill }. `scale` is 'board' or 'inv'.
+function buildRainbowSvg(scale, arrows) {
+  const board = scale === 'board';
+  const svg = svgEl('svg', board
+    ? { viewBox: '0 0 44 44', width: '88%', height: '88%' }
+    : { viewBox: '0 0 28 28', width: '38', height: '38' });
+  const { stroke, segs } = RAINBOW_BAR[scale];
+  for (const [col, p1, p2] of segs) {
+    const [x1, y1] = p1.split(',');
+    const [x2, y2] = p2.split(',');
+    svg.appendChild(svgEl('line', { x1, y1, x2, y2, stroke: col, 'stroke-width': stroke, 'stroke-linecap': 'round' }));
+  }
+  for (const a of arrows) svg.appendChild(svgEl('polygon', { points: a.points, fill: a.fill }));
+  return svg;
+}
+
+function buildSource(cell, r, c) {
+  const hit = sourceIsHit(r, c);
+  const cs = COLOR_CSS[cell.color] ?? COLOR_CSS.white;
+  const wrap = document.createElement('div');
+  wrap.className = 'source-wrap';
+  const dot = document.createElement('div');
+  dot.className = ['source-dot', cs.colorClass, hit ? cs.pulseClass : '']
+    .filter(Boolean).join(' ');
+  wrap.appendChild(dot);
+  return wrap;
+}
+
+function buildTarget(cell, r, c) {
+  const hit = targetIsHit(r, c);
+  const cs = COLOR_CSS[cell.color] ?? COLOR_CSS.white;
+  const outer = document.createElement('div');
+  outer.className = ['target-outer', cs.colorClass, hit ? cs.hitClass : '']
+    .filter(Boolean).join(' ');
+  const inner = document.createElement('div');
+  inner.className = ['target-inner', cs.colorClass].filter(Boolean).join(' ');
+  outer.appendChild(inner);
+  return outer;
+}
+
+function buildFlask(row, col) {
+  const isHit = laserResults.some(res => res.hitFlask?.r === row && res.hitFlask?.c === col);
+  const wrap = document.createElement('div');
+  wrap.className = 'source-wrap';
+  const svg = svgEl('svg', {
+    viewBox: '0 0 44 44', width: '88%', height: '88%',
+    class: 'flask-svg' + (isHit ? ' exploded' : '')
+  });
+
+  const stroke = isHit ? '#ff6633' : '#6ab0c0';
+
+  // Flask body (Erlenmeyer shape)
+  svg.appendChild(svgEl('path', {
+    d: 'M 18,7 L 18,17 L 6,37 L 38,37 L 26,17 L 26,7 Z',
+    fill: isHit ? 'rgba(255,110,50,0.22)' : 'rgba(100,210,220,0.10)',
+    stroke, 'stroke-width': '1.5', 'stroke-linejoin': 'round'
+  }));
+
+  // Stopper / cork
+  svg.appendChild(svgEl('rect', {
+    x: '15', y: '4', width: '14', height: '5', rx: '1.5',
+    fill: isHit ? 'rgba(200,80,40,0.45)' : 'rgba(120,170,190,0.35)',
+    stroke, 'stroke-width': '1'
+  }));
+
+  if (!isHit) {
+    // Liquid fill (green chemical)
+    svg.appendChild(svgEl('path', { d: 'M 10,34 L 16,21 L 28,21 L 34,34 Z', fill: 'rgba(80,210,110,0.38)' }));
+    // Bubbles
+    [[20,27,2.2],[25,24,1.6],[22,31,1.3]].forEach(([cx,cy,r]) =>
+      svg.appendChild(svgEl('circle', { cx, cy, r, fill: 'rgba(160,255,190,0.55)' })));
+  } else {
+    // Exploded: hot liquid spill
+    svg.appendChild(svgEl('path', { d: 'M 10,34 L 16,21 L 28,21 L 34,34 Z', fill: 'rgba(255,120,40,0.45)' }));
+    // Crack lines
+    [['M 20,9 L 24,17', 1.8], ['M 13,23 L 8,33', 1.5], ['M 30,25 L 36,32', 1.5]].forEach(([d, sw]) =>
+      svg.appendChild(svgEl('path', { d, stroke: '#ffaa77', 'stroke-width': sw, fill: 'none', 'stroke-linecap': 'round' })));
+    // Explosion sparks
+    [[12,14,3.5],[32,12,2.5],[22,6,2],[36,20,2]].forEach(([cx,cy,r]) =>
+      svg.appendChild(svgEl('circle', { cx, cy, r, fill: 'rgba(255,180,60,0.7)' })));
+  }
+
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+function buildMirrorEl(cell) {
+  const bar = document.createElement('div');
+  bar.className = 'mirror-bar ' + (cell.variant === '/' ? 'mirror-slash' : 'mirror-bslash');
+  return bar;
+}
+
+function buildMirrorInvIcon(item) {
+  const icon = document.createElement('div');
+  icon.className = 'inv-icon ' + (item.variant === '/' ? 'inv-slash' : 'inv-bslash');
+  return icon;
+}
+
+// Splitter: white in (left) → green out (right) + red out (top).
+const SPLITTER_ARROWS = {
+  board: [{ points: '2,19 2,25 10,22', fill: '#e8f4ff' }, { points: '34,19 34,25 42,22', fill: '#44ff88' }, { points: '19,10 25,10 22,2', fill: '#ff6666' }],
+  inv:   [{ points: '1,12 1,16 6,14',  fill: '#e8f4ff' }, { points: '22,12 22,16 27,14', fill: '#44ff88' }, { points: '12,7 16,7 14,1',  fill: '#ff6666' }]
+};
+
+// Combiner: red in (left) + green in (bottom) → yellow out (top).
+const COMBINER_ARROWS = {
+  board: [{ points: '2,19 2,25 10,22', fill: '#ff6666' }, { points: '19,42 25,42 22,34', fill: '#44ff88' }, { points: '19,10 25,10 22,2', fill: '#ffee44' }],
+  inv:   [{ points: '1,12 1,16 6,14',  fill: '#ff6666' }, { points: '12,27 16,27 14,21', fill: '#44ff88' }, { points: '12,7 16,7 14,1',  fill: '#ffee44' }]
+};
+
+function rainbowBoardEl(arrows) {
+  const wrap = document.createElement('div');
+  wrap.className = 'source-wrap';
+  wrap.appendChild(buildRainbowSvg('board', arrows));
+  return wrap;
+}
+
+function buildSplitterEl()      { return rainbowBoardEl(SPLITTER_ARROWS.board); }
+function buildSplitterInvIcon() { return buildRainbowSvg('inv', SPLITTER_ARROWS.inv); }
+function buildCombinerEl()      { return rainbowBoardEl(COMBINER_ARROWS.board); }
+function buildCombinerInvIcon() { return buildRainbowSvg('inv', COMBINER_ARROWS.inv); }
+
+function renderInventory() {
+  const el = document.getElementById('inventory');
+  el.innerHTML = '';
+  inv.forEach((item, idx) => {
+    const slot = document.createElement('div');
+    slot.className = 'inv-slot';
+    if (item.remaining <= 0) slot.classList.add('depleted');
+    else if (selIdx === idx) slot.classList.add('selected');
+
+    const iconWrap = document.createElement('div');
+    iconWrap.className = 'inv-icon-wrap';
+    iconWrap.appendChild(ITEMS[item.type].buildInvIcon(item));
+
+    const cnt = document.createElement('div');
+    cnt.className = 'inv-count-bar';
+    cnt.textContent = item.remaining + '/' + item.count;
+
+    slot.appendChild(iconWrap);
+    slot.appendChild(cnt);
+
+    if (item.remaining > 0) {
+      slot.addEventListener('click', () => {
+        selIdx = (selIdx === idx) ? null : idx;
+        render();
+      });
+    }
+    el.appendChild(slot);
+  });
+}
+
+
+function makeLaserLine(points, strokeWidth, strokeOpacity, stroke) {
+  return svgEl('polyline', {
+    points, fill: 'none', stroke,
+    'stroke-width': strokeWidth, 'stroke-opacity': strokeOpacity,
+    'stroke-linecap': 'round', 'stroke-linejoin': 'round'
+  });
+}
+
+function renderLaser() {
+  const svg = document.getElementById('laser-svg');
+  svg.innerHTML = '';
+  svg.classList.toggle('pulsing', won);
+
+  if (!laserResults.length) return;
+
+  const wrap = document.getElementById('grid-wrap');
+  const cells = document.querySelectorAll('#grid .cell');
+  const wr = wrap.getBoundingClientRect();
+
+  function cellRect(r, c) { return cells[r * gridSize + c].getBoundingClientRect(); }
+  function center(r, c) {
+    const cr = cellRect(r, c);
+    return { x: cr.left - wr.left + cr.width / 2,
+             y: cr.top  - wr.top  + cr.height / 2 };
+  }
+
+  for (const { color, pts, hitTarget, hitFlask, exitDir } of laserResults) {
+    if (pts.length < 2) continue;
+
+    const coordPairs = pts.map(([r, c]) => {
+      const p = center(r, c);
+      return p.x + ',' + p.y;
+    });
+
+    // Extend beam to grid edge when it exits without hitting anything
+    if (exitDir && !hitTarget && !hitFlask && pts.length > 0) {
+      const [lr, lc] = pts[pts.length - 1];
+      const cr = cellRect(lr, lc);
+      const cx = cr.left - wr.left + cr.width  / 2;
+      const cy = cr.top  - wr.top  + cr.height / 2;
+      const edgeX = exitDir === 'right' ? cr.right  - wr.left
+                  : exitDir === 'left'  ? cr.left   - wr.left : cx;
+      const edgeY = exitDir === 'down'  ? cr.bottom - wr.top
+                  : exitDir === 'up'    ? cr.top    - wr.top  : cy;
+      coordPairs.push(edgeX + ',' + edgeY);
+    }
+
+    const points = coordPairs.join(' ');
+    const { glow, core } = LASER_COLORS[color] ?? LASER_COLORS.white;
+    const w = hitTarget?.matched ? 2 : 1;
+
+    svg.appendChild(makeLaserLine(points, 12 * w, '0.12', glow));
+    svg.appendChild(makeLaserLine(points, 5  * w, '0.40', glow));
+    svg.appendChild(makeLaserLine(points, 2  * w, '0.95', core));
+  }
+}
+
+function renderLevelNav() {
+  const nav = document.getElementById('level-nav');
+  nav.innerHTML = '';
+  const group = document.createElement('div');
+  group.className = 'lvl-btn-group';
+  const label = document.createElement('span');
+  label.id = 'level-nav-label';
+  label.textContent = 'Level';
+  group.appendChild(label);
+  LEVELS.forEach((_, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'lvl-btn' + (idx === currentLevel ? ' active' : '');
+    btn.textContent = idx + 1;
+    btn.addEventListener('click', () => { if (idx !== currentLevel) loadLevel(idx); });
+    group.appendChild(btn);
+  });
+  nav.appendChild(group);
+}
+
+
+// ── Interaction ──────────────────────────────────────────────
+function onEmptyClick(r, c) {
+  if (won || failed || selIdx === null) return;
+  const item = inv[selIdx];
+  if (item.remaining <= 0) return;
+  G[r][c] = { type: item.type, variant: item.variant, fixed: false };
+  item.remaining--;
+  if (item.remaining === 0) selIdx = null;
+  render();
+}
+
+function onPlacedClick(r, c) {
+  if (won || failed) return;
+  const cell = G[r][c];
+  if (!cell || cell.fixed) return;
+  const item = inv.find(it => it.type === cell.type && it.variant === cell.variant);
+  if (item) item.remaining++;
+  G[r][c] = null;
+  render();
+}
+
+function renderBanner() {
+  const banner = document.getElementById('banner');
+  const msg    = document.getElementById('banner-msg');
+  const btn    = document.getElementById('banner-btn');
+  if (won) {
+    banner.className = 'show win';
+    const isLast = currentLevel >= LEVELS.length - 1;
+    msg.textContent = isLast ? 'All Levels Complete' : 'Level Complete';
+    btn.textContent = 'Next Level';
+    btn.className = '';
+    btn.hidden = isLast;
+  } else if (failed) {
+    banner.className = 'show fail';
+    msg.textContent = 'Flask Exploded!';
+    btn.textContent = 'Try Again';
+    btn.className = 'fail';
+    btn.hidden = false;
+  } else {
+    banner.className = '';
+    btn.hidden = true;
+  }
+}
+
+document.getElementById('banner-btn').addEventListener('click', () => {
+  if (failed) { reset(); }
+  else if (currentLevel < LEVELS.length - 1) loadLevel(currentLevel + 1);
+});
+
+window.addEventListener('resize', () => requestAnimationFrame(renderLaser));
+
+document.getElementById('btn-reset').addEventListener('click', reset);
+
+loadLevel(0);
+</script>
+</body>
+</html>
