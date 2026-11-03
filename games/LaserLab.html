@@ -210,6 +210,24 @@ h1 {
 .mirror-slash  { transform: rotate(-45deg); }
 .mirror-bslash { transform: rotate(45deg);  }
 
+/* ── Switch & link badges ───────────── */
+.target-outer.square, .target-inner.square { border-radius: 18%; }
+.source-dot.off { opacity: 0.3; box-shadow: none; animation: none; }
+.badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  font-size: 11px;
+  line-height: 1;
+  padding: 1px 4px 2px;
+  border: 1px solid #2a4868;
+  border-radius: 4px;
+  background: #0a1520;
+  color: #5a80a0;
+  z-index: 2;
+  pointer-events: none;
+}
+
 /* ── Combiner ───────────────────────────── */
 .combiner-bar {
   width: 68%;
@@ -372,7 +390,7 @@ button:active { background: #1c3050; }
   display: flex;
   align-items: center;
 }
-.lvl-btn-group { display: flex; }
+.lvl-btn-group { display: flex; flex-wrap: wrap; justify-content: center; row-gap: 5px; }
 .lvl-btn {
   min-width: 34px;
   height: 34px;
@@ -430,6 +448,16 @@ const REFLECT = {
   '\\': { right:'down', down:'right', left:'up',   up:'left'    }
 };
 
+// Relative turns (from the beam's point of view), used by the prism.
+const LEFT_OF  = { right:'up',   up:'left',   left:'down', down:'right' };
+const RIGHT_OF = { right:'down', down:'left', left:'up',   up:'right'  };
+
+const FLIP_VARIANT = { '/':'\\', '\\':'/' };
+
+const HEX = { white:'#c8d8e8', green:'#3dd86b', red:'#dd5544', yellow:'#ffee44' };
+const PORTAL_HEX = { 1:'#bb88ff', 2:'#5ad8d8' };
+const VALVE_ANGLE = { right:0, down:90, left:180, up:270 };
+
 // Splitter: white beam entering from a given direction splits into two coloured outputs.
 const SPLITTER_OUTPUTS = {
   right: { white: [['right', 'green'], ['up', 'red']] }
@@ -472,7 +500,7 @@ const COLOR_CSS = {
 // trace(ctx) receives { cell, dir, color, r, c, queue } and returns a directive:
 //   { pass: true }             beam continues unchanged (passes over the cell)
 //   { dir: <newDir> }          beam turns and continues
-//   { hitTarget|hitFlask|hitCombiner: {...} }   beam stops, recording the hit
+//   { hitTarget|hitFlask|hitCombiner|hitSwitch: {...} }   beam stops, recording the hit
 //   {}                         beam stops with no recorded hit (e.g. splitter)
 // A trace may also push spawned beams onto `queue`.
 const ITEMS = {
@@ -481,7 +509,11 @@ const ITEMS = {
     buildBoardEl: (cell, r, c) => buildSource(cell, r, c)
   },
   target: {
-    trace: ({ cell, color, r, c }) => ({ hitTarget: { r, c, matched: cell.color === color } }),
+    // cell.color = single-colour target; cell.colors = dual target needing every
+    // listed colour to hit it simultaneously (checked in targetIsHit).
+    trace: ({ cell, color, r, c }) => ({ hitTarget: {
+      r, c, matched: cell.colors ? cell.colors.includes(color) : cell.color === color
+    } }),
     buildBoardEl: (cell, r, c) => buildTarget(cell, r, c)
   },
   flask: {
@@ -489,7 +521,9 @@ const ITEMS = {
     buildBoardEl: (cell, r, c) => buildFlask(r, c)
   },
   mirror: {
-    trace: ({ cell, dir }) => ({ dir: REFLECT[cell.variant][dir] }),
+    // cell.sw links the mirror to a switch: while the switch is on, the
+    // mirror's variant is flipped ('/' <-> '\').
+    trace: ({ cell, dir }) => ({ dir: REFLECT[mirrorVariant(cell)][dir] }),
     buildBoardEl: cell => buildMirrorEl(cell),
     buildInvIcon: item => buildMirrorInvIcon(item)
   },
@@ -515,6 +549,88 @@ const ITEMS = {
       const yellowDir = COMBINER_OUTPUTS[cell.variant]?.[redBeam.hitCombiner.entryDir]?.[grnBeam.hitCombiner.entryDir];
       if (yellowDir) emit(yellowDir, 'yellow');
     }
+  },
+  filter: {
+    // Tinted pane: passes exactly its own colour, absorbs everything else.
+    trace: ({ cell, color }) => color === cell.color ? { pass: true } : {},
+    buildBoardEl: cell => wrapSvg(filterSvg(cell)),
+    buildInvIcon: item => asInvIcon(filterSvg(item))
+  },
+  dichroic: {
+    // Dichroic mirror: reflects its own colour, transmits all others.
+    trace: ({ cell, dir, color }) =>
+      color === cell.color ? { dir: REFLECT[cell.variant][dir] } : { pass: true },
+    buildBoardEl: cell => wrapSvg(dichroicSvg(cell)),
+    buildInvIcon: item => asInvIcon(dichroicSvg(item))
+  },
+  prism: {
+    // Colour-dependent bending: red turns left, green turns right,
+    // white splits into both, yellow passes straight through.
+    trace: ({ dir, color, r, c, queue }) => {
+      if (color === 'white') {
+        queue.push({ r, c, dir: LEFT_OF[dir],  color: 'red' });
+        queue.push({ r, c, dir: RIGHT_OF[dir], color: 'green' });
+        return {};
+      }
+      if (color === 'red')   return { dir: LEFT_OF[dir] };
+      if (color === 'green') return { dir: RIGHT_OF[dir] };
+      return { pass: true };
+    },
+    buildBoardEl: () => wrapSvg(prismSvg()),
+    buildInvIcon: () => asInvIcon(prismSvg())
+  },
+  dye: {
+    // Dye cell: any beam continues straight but leaves in the cell's colour.
+    trace: ({ cell, dir, color, r, c, queue }) => {
+      if (color === cell.color) return { pass: true };
+      queue.push({ r, c, dir, color: cell.color });
+      return {};
+    },
+    buildBoardEl: cell => wrapSvg(dyeSvg(cell)),
+    buildInvIcon: item => asInvIcon(dyeSvg(item))
+  },
+  halfmirror: {
+    // Half-silvered mirror: reflects a copy and transmits the original.
+    trace: ({ cell, dir, color, r, c, queue }) => {
+      queue.push({ r, c, dir: REFLECT[cell.variant][dir], color });
+      return { pass: true };
+    },
+    buildBoardEl: cell => wrapSvg(halfMirrorSvg(cell)),
+    buildInvIcon: item => asInvIcon(halfMirrorSvg(item))
+  },
+  valve: {
+    // One-way valve: passes beams travelling in cell.dir, blocks the rest.
+    trace: ({ cell, dir }) => dir === cell.dir ? { pass: true } : {},
+    buildBoardEl: cell => wrapSvg(valveSvg(cell)),
+    buildInvIcon: item => asInvIcon(valveSvg(item))
+  },
+  blocker: {
+    trace: () => ({}),
+    buildBoardEl: () => wrapSvg(blockerSvg()),
+    buildInvIcon: () => asInvIcon(blockerSvg())
+  },
+  wall: {
+    trace: () => ({}),
+    buildBoardEl: () => wrapSvg(wallSvg())
+  },
+  portal: {
+    // Beam enters one portal and exits its twin (same cell.pair) unchanged.
+    trace: ({ dir, color, r, c, queue }) => {
+      const twin = findTwin(r, c);
+      if (twin) queue.push({ r: twin.r, c: twin.c, dir, color });
+      return {};
+    },
+    buildBoardEl: cell => wrapSvg(portalSvg(cell))
+  },
+  switch: {
+    // Square sensor: absorbs any beam, lights up only for its own colour.
+    trace: ({ cell, color, r, c }) => ({ hitSwitch: { r, c, lit: color === cell.color } }),
+    buildBoardEl: cell => buildSwitchEl(cell)
+  },
+  shutter: {
+    // Gate linked to a switch: closed (blocks) until the switch is on.
+    trace: ({ cell }) => switchStates[cell.sw] ? { pass: true } : {},
+    buildBoardEl: cell => wrapSvg(shutterSvg(cell))
   }
 };
 
@@ -578,11 +694,152 @@ const LEVELS = [
       { type:'mirror',   variant:'\\', label:'Mirror \\', count:2 },
       { type:'mirror',   variant:'/', label:'Mirror /',  count:1 }
     ]
+  },
+  {
+    // Filter: the green pane blocks the raw white beam; split it first.
+    size: 4,
+    fixed: [
+      { r:2, c:0, type:'source', color:'white', dir:'right' },
+      { r:2, c:2, type:'filter', color:'green' },
+      { r:2, c:3, type:'target', color:'green' },
+      { r:0, c:1, type:'target', color:'red' }
+    ],
+    inventory: [
+      { type:'splitter', label:'Splitter', count:1 }
+    ]
+  },
+  {
+    // Dichroic mirrors: red and green share row 3 in opposite directions;
+    // each dichroic peels off only its own colour.
+    size: 4,
+    fixed: [
+      { r:3, c:0, type:'source', color:'red',   dir:'right' },
+      { r:3, c:3, type:'source', color:'green', dir:'left' },
+      { r:0, c:2, type:'target', color:'red' },
+      { r:0, c:1, type:'target', color:'green' }
+    ],
+    inventory: [
+      { type:'dichroic', variant:'/',  color:'red',   label:'Dichroic /',  count:1 },
+      { type:'dichroic', variant:'\\', color:'green', label:'Dichroic \\', count:1 }
+    ]
+  },
+  {
+    // Prism: white in, red bends left (up), green bends right (down).
+    size: 4,
+    fixed: [
+      { r:1, c:0, type:'source', color:'white', dir:'right' },
+      { r:0, c:2, type:'target', color:'red' },
+      { r:3, c:2, type:'target', color:'green' }
+    ],
+    inventory: [
+      { type:'prism', label:'Prism', count:1 }
+    ]
+  },
+  {
+    // Half mirror duplicates the white beam; the dye cell recolours the copy.
+    size: 4,
+    fixed: [
+      { r:2, c:0, type:'source', color:'white', dir:'right' },
+      { r:2, c:3, type:'target', color:'white' },
+      { r:0, c:1, type:'target', color:'red' }
+    ],
+    inventory: [
+      { type:'halfmirror', variant:'/', label:'Half mirror', count:1 },
+      { type:'dye', color:'red', label:'Dye cell', count:1 }
+    ]
+  },
+  {
+    // Valve passes the green beam onward; the blocker must shield the flask
+    // from the splitter's stray red beam.
+    size: 4,
+    fixed: [
+      { r:2, c:0, type:'source', color:'white', dir:'right' },
+      { r:2, c:2, type:'valve', dir:'right' },
+      { r:2, c:3, type:'target', color:'green' },
+      { r:0, c:1, type:'flask' }
+    ],
+    inventory: [
+      { type:'splitter', label:'Splitter', count:1 },
+      { type:'blocker',  label:'Blocker',  count:1 }
+    ]
+  },
+  {
+    // Portals: the beam teleports across the grid, keeping its direction.
+    size: 4,
+    fixed: [
+      { r:3, c:0, type:'source', color:'white', dir:'right' },
+      { r:3, c:2, type:'portal', pair:1 },
+      { r:0, c:1, type:'portal', pair:1 },
+      { r:1, c:1, type:'wall' },
+      { r:2, c:3, type:'target', color:'white' }
+    ],
+    inventory: [
+      { type:'mirror', variant:'\\', label:'Mirror \\', count:1 }
+    ]
+  },
+  {
+    // Switch intro: light the red sensor to power up the green source.
+    size: 4,
+    fixed: [
+      { r:3, c:0, type:'source', color:'red', dir:'right' },
+      { r:0, c:2, type:'switch', id:'A', color:'red' },
+      { r:1, c:0, type:'source', color:'green', dir:'right', sw:'A' },
+      { r:1, c:3, type:'target', color:'green' }
+    ],
+    inventory: [
+      { type:'mirror', variant:'/', label:'Mirror /', count:1 }
+    ]
+  },
+  {
+    // One switch, two shutters: both gates open together.
+    size: 4,
+    fixed: [
+      { r:2, c:0, type:'source', color:'green', dir:'right' },
+      { r:2, c:1, type:'shutter', sw:'A' },
+      { r:2, c:2, type:'shutter', sw:'A' },
+      { r:2, c:3, type:'target', color:'green' },
+      { r:0, c:0, type:'source', color:'red', dir:'down' },
+      { r:3, c:3, type:'switch', id:'A', color:'red' }
+    ],
+    inventory: [
+      { type:'mirror', variant:'\\', label:'Mirror \\', count:1 }
+    ]
+  },
+  {
+    // Flip mirror: the switch flips the fixed mirror from '/' to '\',
+    // redirecting the white beam down to its target.
+    size: 4,
+    fixed: [
+      { r:1, c:0, type:'source', color:'white', dir:'right' },
+      { r:1, c:2, type:'mirror', variant:'/', sw:'A' },
+      { r:0, c:0, type:'source', color:'red', dir:'down' },
+      { r:2, c:3, type:'switch', id:'A', color:'red' },
+      { r:3, c:2, type:'target', color:'white' }
+    ],
+    inventory: [
+      { type:'mirror', variant:'\\', label:'Mirror \\', count:1 }
+    ]
+  },
+  {
+    // Finale: the dual target needs red and green at the same time;
+    // the wall stops the red beam overshooting.
+    size: 4,
+    fixed: [
+      { r:0, c:0, type:'source', color:'red',   dir:'right' },
+      { r:3, c:0, type:'source', color:'green', dir:'right' },
+      { r:0, c:3, type:'wall' },
+      { r:2, c:2, type:'target', colors:['red','green'] }
+    ],
+    inventory: [
+      { type:'mirror', variant:'\\', label:'Mirror \\', count:1 },
+      { type:'mirror', variant:'/',  label:'Mirror /',  count:1 }
+    ]
   }
 ];
 
 // ── State ────────────────────────────────────────────────────
 let G, inv, selIdx, won, failed, laserResults, currentLevel, gridSize;
+let switchStates, switchMeta, switchChangeCounts, pendingSwitch = null;
 
 function loadLevel(idx) {
   currentLevel = idx;
@@ -590,8 +847,18 @@ function loadLevel(idx) {
   gridSize = level.size;
   G = Array.from({length: gridSize}, () => Array(gridSize).fill(null));
   for (const f of level.fixed) {
-    G[f.r][f.c] = { type: f.type, color: f.color, dir: f.dir, fixed: true };
+    G[f.r][f.c] = { ...f, fixed: true };
   }
+  switchStates = {};
+  switchMeta = {};
+  for (const f of level.fixed) {
+    if (f.type === 'switch') {
+      switchStates[f.id] = false;
+      switchMeta[f.id] = f.color;
+    }
+  }
+  switchChangeCounts = {};
+  clearPendingSwitch();
   inv = level.inventory.map(it => ({ ...it, remaining: it.count }));
   selIdx = null;
   won = false;
@@ -612,7 +879,9 @@ function traceAll() {
   for (let r = 0; r < gridSize; r++) {
     for (let c = 0; c < gridSize; c++) {
       if (G[r][c]?.type === 'source') {
-        queue.push({ r, c, dir: G[r][c].dir, color: G[r][c].color });
+        const s = G[r][c];
+        // Switched sources only emit while their switch is on.
+        if (!s.sw || switchStates[s.sw]) queue.push({ r, c, dir: s.dir, color: s.color });
       }
     }
   }
@@ -654,7 +923,7 @@ function drainQueue(queue, visited, results) {
 function traceBeam(r0, c0, d0, color, queue) {
   const pts = [[r0, c0]];
   let r = r0, c = c0, d = d0;
-  let hitTarget = null, hitFlask = null, hitCombiner = null, exitDir = null;
+  let hitTarget = null, hitFlask = null, hitCombiner = null, hitSwitch = null, exitDir = null;
 
   for (let i = 0; i < gridSize * gridSize * 2; i++) {
     const [dr, dc] = DV[d];
@@ -676,26 +945,47 @@ function traceBeam(r0, c0, d0, color, queue) {
     if (res.hitTarget)   hitTarget = res.hitTarget;
     if (res.hitFlask)    hitFlask = res.hitFlask;
     if (res.hitCombiner) hitCombiner = res.hitCombiner;
+    if (res.hitSwitch)   hitSwitch = res.hitSwitch;
     break;
   }
-  return { color, pts, hitTarget, hitFlask, hitCombiner, exitDir };
+  return { color, pts, hitTarget, hitFlask, hitCombiner, hitSwitch, exitDir };
 }
 
 // ── Win / fail checks ────────────────────────────────────────
-function isBeamComplete(r0, c0, color) {
+function isBeamComplete(r0, c0, color, seen = new Set()) {
   const beam = laserResults.find(b => b.color === color && b.pts[0][0] === r0 && b.pts[0][1] === c0);
-  if (!beam) return false;
+  if (!beam || seen.has(beam)) return false;
+  seen.add(beam);
   if (beam.hitTarget) return beam.hitTarget.matched;
-  const [endR, endC] = beam.pts[beam.pts.length - 1];
+  if (beam.hitSwitch) return beam.hitSwitch.lit;
+  let [endR, endC] = beam.pts[beam.pts.length - 1];
   const endCell = G[endR]?.[endC];
-  if (endCell?.type === 'splitter') {
-    const downstream = laserResults.filter(b => b.pts[0][0] === endR && b.pts[0][1] === endC && b !== beam);
-    return downstream.length > 0 && downstream.every(b => isBeamComplete(b.pts[0][0], b.pts[0][1], b.color));
+  if (endCell?.type === 'combiner') return isBeamComplete(endR, endC, 'yellow', seen);
+  // Portals re-emit at their twin; everything else (splitter, prism, dye,
+  // half mirror) spawns downstream beams at the cell the beam stopped in.
+  if (endCell?.type === 'portal') {
+    const twin = findTwin(endR, endC);
+    if (!twin) return false;
+    endR = twin.r; endC = twin.c;
   }
-  if (endCell?.type === 'combiner') {
-    return isBeamComplete(endR, endC, 'yellow');
+  const downstream = laserResults.filter(b => b !== beam && b.pts[0][0] === endR && b.pts[0][1] === endC);
+  return downstream.length > 0 && downstream.every(b => isBeamComplete(endR, endC, b.color, seen));
+}
+
+function findTwin(r, c) {
+  const pair = G[r][c]?.pair;
+  for (let rr = 0; rr < gridSize; rr++) {
+    for (let cc = 0; cc < gridSize; cc++) {
+      if ((rr !== r || cc !== c) && G[rr][cc]?.type === 'portal' && G[rr][cc].pair === pair) {
+        return { r: rr, c: cc };
+      }
+    }
   }
-  return false;
+  return null;
+}
+
+function mirrorVariant(cell) {
+  return cell.sw && switchStates[cell.sw] ? FLIP_VARIANT[cell.variant] : cell.variant;
 }
 
 function sourceIsHit(r, c) {
@@ -705,9 +995,13 @@ function sourceIsHit(r, c) {
 }
 
 function targetIsHit(r, c) {
-  return laserResults.some(lr =>
+  const cell = G[r][c];
+  const hits = laserResults.filter(lr =>
     lr.hitTarget?.r === r && lr.hitTarget?.c === c && lr.hitTarget?.matched
   );
+  // Dual targets need every listed colour hitting at the same time.
+  if (cell?.colors) return cell.colors.every(col => hits.some(b => b.color === col));
+  return hits.length > 0;
 }
 
 function checkWin() {
@@ -717,18 +1011,68 @@ function checkWin() {
       if (G[r][c]?.type === 'target') targets.push({ r, c });
     }
   }
-  return targets.length > 0 && targets.every(t =>
-    laserResults.some(lr =>
-      lr.hitTarget?.r === t.r && lr.hitTarget?.c === t.c && lr.hitTarget?.matched
-    )
-  );
+  return targets.length > 0 && targets.every(t => targetIsHit(t.r, t.c));
+}
+
+// ── Switch settling ──────────────────────────────────────────
+function clearPendingSwitch() {
+  if (pendingSwitch) { clearTimeout(pendingSwitch); pendingSwitch = null; }
+}
+
+function computeLitSwitches() {
+  const lit = {};
+  for (const id in switchStates) lit[id] = false;
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      const cell = G[r][c];
+      if (cell?.type !== 'switch') continue;
+      if (laserResults.some(b => b.hitSwitch?.r === r && b.hitSwitch?.c === c && b.hitSwitch.lit)) {
+        lit[cell.id] = true;
+      }
+    }
+  }
+  return lit;
+}
+
+// Re-trace until switch states stop changing. The first time a switch changes
+// after the user's last edit it flips instantly; once a switch has already
+// changed, further flips are debounced to one per second so cascades (and
+// self-affecting loops) pulse visibly instead of resolving invisibly.
+// Returns true while a debounced change is still pending.
+function settleSwitches() {
+  for (let guard = 0; guard < 64; guard++) {
+    laserResults = traceAll();
+    const ids = Object.keys(switchStates);
+    if (!ids.length) return false;
+    const lit = computeLitSwitches();
+    const changed = ids.filter(id => lit[id] !== switchStates[id]);
+    if (!changed.length) return false;
+    const fresh = changed.filter(id => !switchChangeCounts[id]);
+    if (!fresh.length) {
+      pendingSwitch = setTimeout(() => {
+        pendingSwitch = null;
+        for (const id of changed) {
+          switchStates[id] = lit[id];
+          switchChangeCounts[id] = (switchChangeCounts[id] || 0) + 1;
+        }
+        render();
+      }, 1000);
+      return true;
+    }
+    for (const id of fresh) {
+      switchStates[id] = lit[id];
+      switchChangeCounts[id] = (switchChangeCounts[id] || 0) + 1;
+    }
+  }
+  return false;
 }
 
 // ── Render ───────────────────────────────────────────────────
 function render() {
-  laserResults = traceAll();
-  failed = laserResults.some(res => res.hitFlask);
-  won = !failed && checkWin();
+  clearPendingSwitch();
+  const pending = settleSwitches();
+  failed = !pending && laserResults.some(res => res.hitFlask);
+  won = !failed && !pending && checkWin();
   renderGrid();
   renderInventory();
   renderBanner();
@@ -751,6 +1095,8 @@ function renderGrid() {
         div.addEventListener('click', () => onEmptyClick(r, c));
       } else {
         div.appendChild(ITEMS[cell.type].buildBoardEl(cell, r, c));
+        const swId = cell.type === 'switch' ? cell.id : cell.sw;
+        if (swId) div.appendChild(buildBadge(swId));
         if (!cell.fixed) {
           div.classList.add('removable', 'interactive');
           div.addEventListener('click', () => onPlacedClick(r, c));
@@ -794,18 +1140,20 @@ function buildRainbowSvg(scale, arrows) {
 }
 
 function buildSource(cell, r, c) {
-  const hit = sourceIsHit(r, c);
+  const off = cell.sw && !switchStates[cell.sw];
+  const hit = !off && sourceIsHit(r, c);
   const cs = COLOR_CSS[cell.color] ?? COLOR_CSS.white;
   const wrap = document.createElement('div');
   wrap.className = 'source-wrap';
   const dot = document.createElement('div');
-  dot.className = ['source-dot', cs.colorClass, hit ? cs.pulseClass : '']
+  dot.className = ['source-dot', cs.colorClass, off ? 'off' : '', hit ? cs.pulseClass : '']
     .filter(Boolean).join(' ');
   wrap.appendChild(dot);
   return wrap;
 }
 
 function buildTarget(cell, r, c) {
+  if (cell.colors) return buildDualTarget(cell, r, c);
   const hit = targetIsHit(r, c);
   const cs = COLOR_CSS[cell.color] ?? COLOR_CSS.white;
   const outer = document.createElement('div');
@@ -815,6 +1163,43 @@ function buildTarget(cell, r, c) {
   inner.className = ['target-inner', cs.colorClass].filter(Boolean).join(' ');
   outer.appendChild(inner);
   return outer;
+}
+
+function buildDualTarget(cell, r, c) {
+  const hit = targetIsHit(r, c);
+  const [h0, h1] = cell.colors.map(col => HEX[col]);
+  const svg = itemSvg();
+  svg.appendChild(svgEl('path', { d:'M22,8 A14,14 0 0 0 22,36', fill:'none', stroke:h0, 'stroke-width':2.5 }));
+  svg.appendChild(svgEl('path', { d:'M22,8 A14,14 0 0 1 22,36', fill:'none', stroke:h1, 'stroke-width':2.5 }));
+  svg.appendChild(svgEl('circle', { cx:18.5, cy:22, r:4, fill:h0 }));
+  svg.appendChild(svgEl('circle', { cx:25.5, cy:22, r:4, fill:h1 }));
+  if (hit) svg.style.filter = 'drop-shadow(0 0 5px #ffffffaa)';
+  return wrapSvg(svg);
+}
+
+function buildSwitchEl(cell) {
+  const lit = switchStates[cell.id];
+  const cs = COLOR_CSS[cell.color] ?? COLOR_CSS.white;
+  const outer = document.createElement('div');
+  outer.className = ['target-outer', 'square', cs.colorClass, lit ? cs.hitClass : '']
+    .filter(Boolean).join(' ');
+  const inner = document.createElement('div');
+  inner.className = ['target-inner', 'square', cs.colorClass].filter(Boolean).join(' ');
+  outer.appendChild(inner);
+  return outer;
+}
+
+function buildBadge(id) {
+  const b = document.createElement('div');
+  b.className = 'badge';
+  b.textContent = id;
+  if (switchStates[id]) {
+    const hex = HEX[switchMeta[id]] ?? HEX.white;
+    b.style.color = hex;
+    b.style.borderColor = hex;
+    b.style.boxShadow = `0 0 6px ${hex}aa`;
+  }
+  return b;
 }
 
 function buildFlask(row, col) {
@@ -864,15 +1249,145 @@ function buildFlask(row, col) {
 }
 
 function buildMirrorEl(cell) {
-  const bar = document.createElement('div');
-  bar.className = 'mirror-bar ' + (cell.variant === '/' ? 'mirror-slash' : 'mirror-bslash');
-  return bar;
+  const variant = mirrorVariant(cell);
+  if (!cell.sw) {
+    const bar = document.createElement('div');
+    bar.className = 'mirror-bar ' + (variant === '/' ? 'mirror-slash' : 'mirror-bslash');
+    return bar;
+  }
+  // Switched flip mirror: amber bar plus a faint ghost of the other position.
+  const wrap = document.createElement('div');
+  wrap.className = 'source-wrap';
+  wrap.appendChild(flipMirrorBar(FLIP_VARIANT[variant], true));
+  wrap.appendChild(flipMirrorBar(variant, false));
+  return wrap;
+}
+
+function flipMirrorBar(variant, ghost) {
+  const b = document.createElement('div');
+  b.style.cssText =
+    `position:absolute; width:68%; height:3px; left:16%; top:calc(50% - 1.5px);` +
+    `border-radius:2px; transform:rotate(${variant === '/' ? -45 : 45}deg);` +
+    (ghost
+      ? 'background:#3a5878; opacity:0.35;'
+      : 'background:linear-gradient(90deg,#cc8f3a,#f0c46a,#cc8f3a); box-shadow:0 0 7px #e8b05a66;');
+  return b;
 }
 
 function buildMirrorInvIcon(item) {
   const icon = document.createElement('div');
   icon.className = 'inv-icon ' + (item.variant === '/' ? 'inv-slash' : 'inv-bslash');
   return icon;
+}
+
+// ── New item graphics ────────────────────────────────────────
+// Each builder returns a 44-unit SVG used both on the board (wrapped via
+// wrapSvg) and in the inventory (sized via asInvIcon). Builders take either
+// a grid cell or an inventory item — both carry color/variant/dir.
+function itemSvg() {
+  return svgEl('svg', { viewBox: '0 0 44 44', width: '88%', height: '88%' });
+}
+
+function wrapSvg(svg) {
+  const w = document.createElement('div');
+  w.className = 'source-wrap';
+  w.appendChild(svg);
+  return w;
+}
+
+function asInvIcon(svg) {
+  svg.setAttribute('width', '38');
+  svg.setAttribute('height', '38');
+  return svg;
+}
+
+function diagCoords(variant) {
+  return variant === '/' ? [10, 34, 34, 10] : [10, 10, 34, 34];
+}
+
+function filterSvg(item) {
+  const hex = HEX[item.color];
+  const svg = itemSvg();
+  svg.appendChild(svgEl('rect', { x:11, y:11, width:22, height:22, rx:3, fill:hex + '26', stroke:hex, 'stroke-width':2 }));
+  for (const x of [17, 22, 27]) {
+    svg.appendChild(svgEl('line', { x1:x, y1:15, x2:x, y2:29, stroke:hex + '66', 'stroke-width':1.5 }));
+  }
+  return svg;
+}
+
+function dichroicSvg(item) {
+  const [x1, y1, x2, y2] = diagCoords(item.variant);
+  const svg = itemSvg();
+  svg.appendChild(svgEl('line', { x1, y1, x2, y2, stroke:HEX[item.color], 'stroke-width':3.5, 'stroke-linecap':'round' }));
+  return svg;
+}
+
+function halfMirrorSvg(item) {
+  const [x1, y1, x2, y2] = diagCoords(item.variant);
+  const svg = itemSvg();
+  svg.appendChild(svgEl('line', { x1, y1, x2, y2, stroke:'#6ab8f0', 'stroke-width':3, 'stroke-linecap':'round', 'stroke-dasharray':'5 4' }));
+  return svg;
+}
+
+function prismSvg() {
+  const svg = itemSvg();
+  svg.appendChild(svgEl('path', { d:'M22,7 L37,35 L7,35 Z', fill:'rgba(190,150,255,0.12)', stroke:'#c8a0ff', 'stroke-width':1.8, 'stroke-linejoin':'round' }));
+  svg.appendChild(svgEl('circle', { cx:16, cy:30, r:2.2, fill:HEX.red }));
+  svg.appendChild(svgEl('circle', { cx:28, cy:30, r:2.2, fill:HEX.green }));
+  return svg;
+}
+
+function dyeSvg(item) {
+  const hex = HEX[item.color];
+  const svg = itemSvg();
+  svg.appendChild(svgEl('path', { d:'M22,9 L35,22 L22,35 L9,22 Z', fill:hex + '30', stroke:hex, 'stroke-width':2, 'stroke-linejoin':'round' }));
+  return svg;
+}
+
+function valveSvg(item) {
+  const svg = itemSvg();
+  const g = svgEl('g', { transform:`rotate(${VALVE_ANGLE[item.dir]} 22 22)` });
+  for (const points of ['12,12 22,22 12,32', '24,12 34,22 24,32']) {
+    g.appendChild(svgEl('polyline', { points, fill:'none', stroke:'#88aac8', 'stroke-width':3, 'stroke-linecap':'round', 'stroke-linejoin':'round' }));
+  }
+  svg.appendChild(g);
+  return svg;
+}
+
+function blockerSvg() {
+  const svg = itemSvg();
+  svg.appendChild(svgEl('rect', { x:9, y:9, width:26, height:26, rx:4, fill:'#3a4a5e', stroke:'#6a88a8', 'stroke-width':1.5 }));
+  svg.appendChild(svgEl('line', { x1:16, y1:16, x2:28, y2:28, stroke:'#243246', 'stroke-width':2.5, 'stroke-linecap':'round' }));
+  svg.appendChild(svgEl('line', { x1:28, y1:16, x2:16, y2:28, stroke:'#243246', 'stroke-width':2.5, 'stroke-linecap':'round' }));
+  return svg;
+}
+
+function wallSvg() {
+  const svg = itemSvg();
+  svg.appendChild(svgEl('rect', { x:7, y:7, width:30, height:30, rx:2, fill:'#1f2c40', stroke:'#33455e', 'stroke-width':1.5 }));
+  for (const d of ['M7,17 L37,17', 'M7,27 L37,27', 'M19,7 L19,17', 'M27,17 L27,27', 'M19,27 L19,37']) {
+    svg.appendChild(svgEl('path', { d, stroke:'#33455e', 'stroke-width':1.5, fill:'none' }));
+  }
+  return svg;
+}
+
+function portalSvg(cell) {
+  const hex = PORTAL_HEX[cell.pair] ?? '#bb88ff';
+  const svg = itemSvg();
+  svg.appendChild(svgEl('circle', { cx:22, cy:22, r:12, fill:'none', stroke:hex, 'stroke-width':2.5 }));
+  svg.appendChild(svgEl('circle', { cx:22, cy:22, r:6.5, fill:'none', stroke:hex, 'stroke-width':1.5, 'stroke-dasharray':'3 3' }));
+  svg.appendChild(svgEl('circle', { cx:22, cy:22, r:2, fill:hex }));
+  return svg;
+}
+
+function shutterSvg(cell) {
+  const open = !!switchStates[cell.sw];
+  const svg = itemSvg();
+  svg.appendChild(svgEl('rect', { x:8, y:8, width:28, height:28, rx:3, fill:'rgba(90,112,144,0.08)', stroke:'#5a7090', 'stroke-width':1.5 }));
+  for (const x of [13, 20.25, 27.5]) {
+    svg.appendChild(svgEl('rect', { x, y:11, width:3.5, height: open ? 5 : 22, rx:1.5, fill: open ? '#3dd86b' : '#c06060' }));
+  }
+  return svg;
 }
 
 // Splitter: white in (left) → green out (right) + red out (top).
@@ -1012,19 +1527,29 @@ function onEmptyClick(r, c) {
   if (won || failed || selIdx === null) return;
   const item = inv[selIdx];
   if (item.remaining <= 0) return;
-  G[r][c] = { type: item.type, variant: item.variant, fixed: false };
+  G[r][c] = { type: item.type, variant: item.variant, color: item.color, dir: item.dir, fixed: false };
   item.remaining--;
   if (item.remaining === 0) selIdx = null;
-  render();
+  userRender();
 }
 
 function onPlacedClick(r, c) {
   if (won || failed) return;
   const cell = G[r][c];
   if (!cell || cell.fixed) return;
-  const item = inv.find(it => it.type === cell.type && it.variant === cell.variant);
+  const item = inv.find(it =>
+    it.type === cell.type && it.variant === cell.variant &&
+    it.color === cell.color && it.dir === cell.dir
+  );
   if (item) item.remaining++;
   G[r][c] = null;
+  userRender();
+}
+
+// A user edit resets the switch debounce: each switch may once again
+// change once instantly before further changes are slowed to 1s pulses.
+function userRender() {
+  switchChangeCounts = {};
   render();
 }
 
